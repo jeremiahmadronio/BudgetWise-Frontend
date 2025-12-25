@@ -12,12 +12,15 @@ const API_BASE_URL = 'http://localhost:8080/api/v1/markets'
 export interface MarketDisplayDTO {
   id: number
   marketName: string
-  marketType: 'WET_MARKET' | 'SUPERMARKET'
-  marketStatus: 'ACTIVE' | 'INACTIVE'
-  totalProductsAvailable: number
+  // Support both field name formats from different endpoints
+  type?: 'WET_MARKET' | 'SUPERMARKET'  // From /view endpoint
+  marketType?: 'WET_MARKET' | 'SUPERMARKET'  // From /displayMarkets endpoint
+  status?: 'ACTIVE' | 'INACTIVE'  // From /view endpoint
+  marketStatus?: 'ACTIVE' | 'INACTIVE'  // From /displayMarkets endpoint
+  totalProductsAvailable?: number  // From /displayMarkets endpoint
+  totalProducts?: number  // From /view endpoint
   latitude?: number
   longitude?: number
-  totalProducts?: number
   openingTime?: string | null
   closingTime?: string | null
   ratings?: number
@@ -121,8 +124,14 @@ export async function updateMarketStatus(
 export async function updateMarket(
   marketId: number,
   data: {
-    marketName: string
-    marketType: 'WET_MARKET' | 'SUPERMARKET'
+    marketLocation: string
+    type: 'WET_MARKET' | 'SUPERMARKET'
+    latitude: number
+    longitude: number
+    ratings: number
+    openingTime: string | null
+    closingTime: string | null
+    description: string | null
   }
 ): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/${marketId}`, {

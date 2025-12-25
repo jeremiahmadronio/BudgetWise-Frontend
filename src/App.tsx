@@ -1,4 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+// Leaflet CSS
+import 'leaflet/dist/leaflet.css';
 // Layouts
 import { MainLayout } from './layout/MainLayout';
 import { AdminLayout } from './layout/AdminLayout';

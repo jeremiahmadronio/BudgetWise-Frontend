@@ -5,7 +5,11 @@
  * Manages market locations with viewing, editing, and product availability tracking
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+import '../config/leafleat-config'
 import {
   fetchMarketsPage,
   fetchMarketStats,
@@ -28,8 +32,88 @@ import {
   Eye,
   Pencil,
   Info,
-  ChevronRight
+  ChevronRight,
+  MapPin,
+  Map,
+  Satellite,
+  Star
 } from 'lucide-react'
+
+// ============================================================================
+// Custom Red Marker Icon
+// ============================================================================
+
+const redMarkerIcon = L.icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+})
+
+// ============================================================================
+// Map Click Handler Component
+// ============================================================================
+
+interface MapClickHandlerProps {
+  onLocationSelect: (lat: number, lng: number) => void
+}
+
+function MapClickHandler({ onLocationSelect }: MapClickHandlerProps) {
+  useMapEvents({
+    click: (e) => {
+      onLocationSelect(e.latlng.lat, e.latlng.lng)
+    },
+  })
+  return null
+}
+
+interface MapUpdaterProps {
+  center: { lat: number; lng: number } | null
+}
+
+function MapUpdater({ center }: MapUpdaterProps) {
+  const map = useMap()
+  
+  useEffect(() => {
+    if (center) {
+      map.setView([center.lat, center.lng], 15)
+    }
+  }, [center, map])
+  
+  return null
+}
+
+// Custom Ctrl+Scroll Zoom Handler
+function CtrlScrollZoom() {
+  const map = useMap()
+  
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault()
+        const delta = e.deltaY
+        const zoom = map.getZoom()
+        
+        if (delta < 0) {
+          map.setZoom(zoom + 1)
+        } else {
+          map.setZoom(zoom - 1)
+        }
+      }
+    }
+    
+    const container = map.getContainer()
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    
+    return () => {
+      container.removeEventListener('wheel', handleWheel)
+    }
+  }, [map])
+  
+  return null
+}
 
 export function Market() {
   // ============================================================================
@@ -62,6 +146,17 @@ export function Market() {
   const [viewModal, setViewModal] = useState<{ open: boolean; market?: MarketDisplayDTO; loading?: boolean; error?: string }>({ open: false, loading: false })
   const [bulkArchiveModal, setBulkArchiveModal] = useState<{ open: boolean; count: number }>({ open: false, count: 0 })
   const [successModal, setSuccessModal] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+  
+  const [editLocation, setEditLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const [mapInteractionEnabled, setMapInteractionEnabled] = useState(true)
+  const [locationSearch, setLocationSearch] = useState('')
+  const [searchResults, setSearchResults] = useState<Array<{ lat: string; lon: string; display_name: string }>>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [searchCenter, setSearchCenter] = useState<{ lat: number; lng: number } | null>(null)
+  const [mapLayer, setMapLayer] = useState<'street' | 'satellite'>('street')
+  const [isSaving, setIsSaving] = useState(false)
+  const [editRating, setEditRating] = useState<number>(0)
+  const [hoverRating, setHoverRating] = useState<number>(0)
 
   // ============================================================================
   // Data Fetching
@@ -99,10 +194,12 @@ export function Market() {
     if (searchTerm && !market.marketName.trim().toLowerCase().includes(searchTerm.trim().toLowerCase())) {
       return false
     }
-    if (typeFilter !== 'all' && market.marketType !== typeFilter) {
+    const marketType = market.type || market.marketType
+    if (typeFilter !== 'all' && marketType !== typeFilter) {
       return false
     }
-    if (statusFilter !== 'all' && market.marketStatus !== statusFilter) {
+    const marketStatus = market.status || market.marketStatus
+    if (statusFilter !== 'all' && marketStatus !== statusFilter) {
       return false
     }
     return true
@@ -118,7 +215,8 @@ export function Market() {
   // Utility Functions
   // ============================================================================
   
-  const toTitleCase = (str: string) => {
+  const toTitleCase = (str: string | undefined) => {
+    if (!str) return ''
     return str.replace(/_/g, ' ').toLowerCase().split(' ').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ')
@@ -170,6 +268,34 @@ export function Market() {
     } catch (error) {
       alert('Failed to archive selected markets. Please try again.')
       console.error(error)
+    }
+  }
+
+  // Search for location using Nominatim (OpenStreetMap)
+  const handleLocationSearch = async () => {
+    if (!locationSearch.trim()) return
+    
+    setIsSearching(true)
+    setSearchResults([])
+    
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(locationSearch)}&countrycodes=ph&limit=5`
+      )
+      const data = await response.json()
+      setSearchResults(data)
+      
+      if (data.length > 0) {
+        // Auto-select first result
+        const first = data[0]
+        setSearchCenter({ lat: parseFloat(first.lat), lng: parseFloat(first.lon) })
+        setEditLocation({ lat: parseFloat(first.lat), lng: parseFloat(first.lon) })
+      }
+    } catch (error) {
+      console.error('Failed to search location:', error)
+      alert('Failed to search location. Please try again.')
+    } finally {
+      setIsSearching(false)
     }
   }
 
@@ -356,11 +482,11 @@ export function Market() {
                     </td>
                     <td className="py-4 px-3 md:px-4 text-center">
                       <span className={`text-sm px-3 py-1 rounded-md font-medium inline-block ${
-                        market.marketType === 'SUPERMARKET' 
+                        (market.type || market.marketType) === 'SUPERMARKET' 
                           ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' 
                           : 'bg-sky-50 text-sky-700 border border-sky-100'
                       }`}>
-                        {toTitleCase(market.marketType)}
+                        {toTitleCase(market.type || market.marketType || '')}
                       </span>
                     </td>
                     <td className="py-4 px-3 md:px-4 text-center">
@@ -374,26 +500,43 @@ export function Market() {
                     <td className="py-4 px-3 md:px-4">
                       <div className="flex justify-center">
                         <span className={`inline-block px-2.5 py-1 rounded text-sm font-medium ${
-                          market.marketStatus === 'ACTIVE' ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600'
-                        }`}>{toTitleCase(market.marketStatus)}</span>
+                          (market.status || market.marketStatus) === 'ACTIVE' ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600'
+                        }`}>{toTitleCase(market.status || market.marketStatus || '')}</span>
                       </div>
                     </td>
                     <td className="py-4 px-3 md:px-4">  
                       <div className="flex items-center justify-center gap-2">
                         <button 
                           className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded transition-colors"
-                          onClick={() => {
-                            console.log('=== BUTTON CLICKED ===')
-                            console.log('Market object:', market)
-                            console.log('Market ID:', market.id)
+                          onClick={async () => {
+                            console.log('Fetching market details for ID:', market.id)
                             
-                            // Simple test - just open modal with existing market data
+                            // Open modal with loading state
                             setViewModal({ 
                               open: true, 
-                              market: market,
-                              loading: false, 
+                              loading: true,
                               error: undefined 
                             })
+                            
+                            try {
+                              // Fetch full details from /view endpoint
+                              const fullDetails = await fetchMarketDetails(market.id)
+                              console.log('Fetched market details:', fullDetails)
+                              
+                              setViewModal({
+                                open: true,
+                                market: fullDetails,
+                                loading: false,
+                                error: undefined
+                              })
+                            } catch (error) {
+                              console.error('Failed to fetch market details:', error)
+                              setViewModal({
+                                open: true,
+                                loading: false,
+                                error: 'Failed to load market details. Please try again.'
+                              })
+                            }
                           }}
                         >
                           <Eye className="w-4 h-4" />
@@ -401,7 +544,16 @@ export function Market() {
                         </button>
                         <button 
                           className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
-                          onClick={() => setEditModal({ open: true, market })}
+                          onClick={async () => {
+                            try {
+                              // Fetch full details from /view endpoint
+                              const fullDetails = await fetchMarketDetails(market.id)
+                              setEditModal({ open: true, market: fullDetails })
+                            } catch (error) {
+                              console.error('Failed to fetch market details:', error)
+                              alert('Failed to load market details. Please try again.')
+                            }
+                          }}
                         >
                           <Pencil className="w-4 h-4" />
                           <span>Edit</span>
@@ -488,22 +640,22 @@ export function Market() {
                   <div className="text-sm text-gray-500 mt-1">MK-{String(market.id).padStart(3, '0')}</div>
                 </div>
                 <span className={`text-xs px-2.5 py-1 rounded font-semibold whitespace-nowrap ${
-                  market.marketStatus === 'ACTIVE' 
+                  (market.status || market.marketStatus) === 'ACTIVE' 
                     ? 'bg-green-50 text-green-700' 
                     : 'bg-gray-50 text-gray-600'
                 }`}>
-                  {toTitleCase(market.marketStatus)}
+                  {toTitleCase(market.status || market.marketStatus || '')}
                 </span>
               </div>
 
               {/* Type */}
               <div className="flex items-center gap-2 text-sm text-gray-700 mb-3">
-                {market.marketType === 'SUPERMARKET' ? (
+                {(market.type || market.marketType) === 'SUPERMARKET' ? (
                   <ShoppingCart className="w-4 h-4 text-indigo-500" />
                 ) : (
                   <Droplets className="w-4 h-4 text-sky-500" />
                 )}
-                <span className="font-medium">{toTitleCase(market.marketType)}</span>
+                <span className="font-medium">{toTitleCase(market.type || market.marketType || '')}</span>
               </div>
 
               {/* Products Available */}
@@ -516,18 +668,35 @@ export function Market() {
               <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
                 <button 
                   className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded transition-colors font-medium"
-                  onClick={() => {
-                    console.log('=== MOBILE BUTTON CLICKED ===')
-                    console.log('Market object:', market)
-                    console.log('Market ID:', market.id)
+                  onClick={async () => {
+                    console.log('Fetching market details for ID:', market.id)
                     
-                    // Simple test - just open modal with existing market data
+                    // Open modal with loading state
                     setViewModal({ 
                       open: true, 
-                      market: market,
-                      loading: false, 
+                      loading: true,
                       error: undefined 
                     })
+                    
+                    try {
+                      // Fetch full details from /view endpoint
+                      const fullDetails = await fetchMarketDetails(market.id)
+                      console.log('Fetched market details:', fullDetails)
+                      
+                      setViewModal({
+                        open: true,
+                        market: fullDetails,
+                        loading: false,
+                        error: undefined
+                      })
+                    } catch (error) {
+                      console.error('Failed to fetch market details:', error)
+                      setViewModal({
+                        open: true,
+                        loading: false,
+                        error: 'Failed to load market details. Please try again.'
+                      })
+                    }
                   }}
                 >
                   <Eye className="w-4 h-4" />
@@ -535,7 +704,16 @@ export function Market() {
                 </button>
                 <button 
                   className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors font-medium"
-                  onClick={() => setEditModal({ open: true, market })}
+                  onClick={async () => {
+                    try {
+                      // Fetch full details from /view endpoint
+                      const fullDetails = await fetchMarketDetails(market.id)
+                      setEditModal({ open: true, market: fullDetails })
+                    } catch (error) {
+                      console.error('Failed to fetch market details:', error)
+                      alert('Failed to load market details. Please try again.')
+                    }
+                  }}
                 >
                   <Pencil className="w-4 h-4" />
                   <span>Edit</span>
@@ -568,13 +746,36 @@ export function Market() {
 
     {/* Edit Modal */}
     {editModal.open && editModal.market && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-3 md:p-4" onClick={() => setEditModal({ open: false })}>
-        <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-4 md:p-6 animate-fadeIn max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-3 md:p-4" onClick={() => {
+        setEditModal({ open: false })
+        setEditLocation(null)
+        setMapInteractionEnabled(true)
+        setLocationSearch('')
+        setSearchResults([])
+        setSearchCenter(null)
+        setMapLayer('street')
+        setEditRating(0)
+        setHoverRating(0)
+      }}>
+        <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full p-4 md:p-6 animate-fadeIn max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
           {/* Header */}
           <div className="flex items-center justify-between mb-4 md:mb-6">
-            <h2 className="text-lg md:text-xl font-bold text-gray-900">Edit Market</h2>
+            <div className="flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-blue-600" />
+              <h2 className="text-lg md:text-xl font-bold text-gray-900">Edit Market</h2>
+            </div>
             <button
-              onClick={() => setEditModal({ open: false })}
+              onClick={() => {
+                setEditModal({ open: false })
+                setEditLocation(null)
+                setMapInteractionEnabled(true)
+                setLocationSearch('')
+                setSearchResults([])
+                setSearchCenter(null)
+                setMapLayer('street')
+                setEditRating(0)
+                setHoverRating(0)
+              }}
               className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -588,20 +789,50 @@ export function Market() {
             e.preventDefault()
             const formData = new FormData(e.currentTarget)
             
-            const updateData = {
-              marketName: formData.get('marketName') as string,
-              marketType: formData.get('marketType') as 'WET_MARKET' | 'SUPERMARKET'
+            // Format times to LocalDateTime format (ISO 8601)
+            const currentDate = new Date().toISOString().split('T')[0]
+            
+            // Parse opening time
+            let openingTime = null
+            const openingHour = formData.get('openingHour') as string
+            const openingMinute = formData.get('openingMinute') as string
+            const openingPeriod = formData.get('openingPeriod') as string
+            if (openingHour && openingMinute && openingPeriod) {
+              let hour = parseInt(openingHour)
+              if (openingPeriod === 'PM' && hour !== 12) hour += 12
+              if (openingPeriod === 'AM' && hour === 12) hour = 0
+              openingTime = `${currentDate}T${String(hour).padStart(2, '0')}:${String(openingMinute).padStart(2, '0')}:00`
             }
+            
+            // Parse closing time
+            let closingTime = null
+            const closingHour = formData.get('closingHour') as string
+            const closingMinute = formData.get('closingMinute') as string
+            const closingPeriod = formData.get('closingPeriod') as string
+            if (closingHour && closingMinute && closingPeriod) {
+              let hour = parseInt(closingHour)
+              if (closingPeriod === 'PM' && hour !== 12) hour += 12
+              if (closingPeriod === 'AM' && hour === 12) hour = 0
+              closingTime = `${currentDate}T${String(hour).padStart(2, '0')}:${String(closingMinute).padStart(2, '0')}:00`
+            }
+            
+            const updateData = {
+              marketLocation: formData.get('marketName') as string,
+              type: formData.get('marketType') as 'WET_MARKET' | 'SUPERMARKET',
+              latitude: editLocation?.lat || editModal.market!.latitude || 0,
+              longitude: editLocation?.lng || editModal.market!.longitude || 0,
+              ratings: parseFloat(formData.get('ratings') as string) || 0,
+              openingTime,
+              closingTime,
+              description: formData.get('description') as string || null,
+            }
+            
+            setIsSaving(true)
             
             try {
               await updateMarket(editModal.market!.id, updateData)
-              setEditModal({ open: false })
-              setSuccessModal({ 
-                open: true, 
-                message: 'Market has been successfully updated!' 
-              })
               
-              // Refresh data
+              // Refresh data first
               const [marketsPage, statsData] = await Promise.all([
                 fetchMarketsPage(page, pageSize),
                 fetchMarketStats(),
@@ -609,35 +840,383 @@ export function Market() {
               setMarkets(marketsPage.content || [])
               setTotalPages(marketsPage.page?.totalPages || 1)
               setStats(statsData)
+              
+              // Close modal and show success
+              setEditModal({ open: false })
+              setEditLocation(null)
+              setMapInteractionEnabled(true)
+              setLocationSearch('')
+              setSearchResults([])
+              setSearchCenter(null)
+              setMapLayer('street')
+              
+              setSuccessModal({ 
+                open: true, 
+                message: 'Market has been successfully updated!' 
+              })
             } catch (error) {
-              alert('Failed to update market. Please try again.')
-              console.error(error)
+              console.error('Failed to update market:', error)
+              alert('Failed to update market. Please check the console for details and try again.')
+            } finally {
+              setIsSaving(false)
             }
           }}>
-            {/* Market Name */}
+            {/* Market Name & Type Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Market Name</label>
+                <input
+                  type="text"
+                  name="marketName"
+                  className="w-full border border-gray-300 rounded-lg px-3 md:px-4 py-2 md:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  defaultValue={editModal.market.marketName}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Market Type</label>
+                <select
+                  name="marketType"
+                  className="w-full border border-gray-300 rounded-lg px-3 md:px-4 py-2 md:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                  defaultValue={editModal.market.type || editModal.market.marketType}
+                  required
+                >
+                  <option value="WET_MARKET">Wet Market</option>
+                  <option value="SUPERMARKET">Supermarket</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Operating Hours Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Opening Time</label>
+                <div className="flex gap-2">
+                  <select
+                    name="openingHour"
+                    className="flex-1 border border-gray-300 rounded-lg px-2 md:px-3 py-2 md:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                    defaultValue={editModal.market.openingTime ? new Date(editModal.market.openingTime).getHours() % 12 || 12 : ''}
+                  >
+                    <option value="">Hour</option>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                  <select
+                    name="openingMinute"
+                    className="flex-1 border border-gray-300 rounded-lg px-2 md:px-3 py-2 md:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                    defaultValue={editModal.market.openingTime ? new Date(editModal.market.openingTime).getMinutes() : ''}
+                  >
+                    <option value="">Min</option>
+                    {Array.from({ length: 60 }, (_, i) => i).map(m => (
+                      <option key={m} value={m}>{String(m).padStart(2, '0')}</option>
+                    ))}
+                  </select>
+                  <select
+                    name="openingPeriod"
+                    className="flex-1 border border-gray-300 rounded-lg px-2 md:px-3 py-2 md:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                    defaultValue={editModal.market.openingTime ? (new Date(editModal.market.openingTime).getHours() >= 12 ? 'PM' : 'AM') : ''}
+                  >
+                    <option value="">--</option>
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Closing Time</label>
+                <div className="flex gap-2">
+                  <select
+                    name="closingHour"
+                    className="flex-1 border border-gray-300 rounded-lg px-2 md:px-3 py-2 md:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                    defaultValue={editModal.market.closingTime ? new Date(editModal.market.closingTime).getHours() % 12 || 12 : ''}
+                  >
+                    <option value="">Hour</option>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
+                      <option key={h} value={h}>{h}</option>
+                    ))}
+                  </select>
+                  <select
+                    name="closingMinute"
+                    className="flex-1 border border-gray-300 rounded-lg px-2 md:px-3 py-2 md:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                    defaultValue={editModal.market.closingTime ? new Date(editModal.market.closingTime).getMinutes() : ''}
+                  >
+                    <option value="">Min</option>
+                    {Array.from({ length: 60 }, (_, i) => i).map(m => (
+                      <option key={m} value={m}>{String(m).padStart(2, '0')}</option>
+                    ))}
+                  </select>
+                  <select
+                    name="closingPeriod"
+                    className="flex-1 border border-gray-300 rounded-lg px-2 md:px-3 py-2 md:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
+                    defaultValue={editModal.market.closingTime ? (new Date(editModal.market.closingTime).getHours() >= 12 ? 'PM' : 'AM') : ''}
+                  >
+                    <option value="">--</option>
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Location Coordinates (Read-only display) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Latitude</label>
+                <input
+                  type="text"
+                  className="w-full border border-gray-200 rounded-lg px-3 md:px-4 py-2 md:py-2.5 text-sm bg-gray-50 text-gray-600"
+                  value={editLocation?.lat?.toFixed(6) || editModal.market.latitude?.toFixed(6) || 'Not set'}
+                  readOnly
+                />
+              </div>
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Longitude</label>
+                <input
+                  type="text"
+                  className="w-full border border-gray-200 rounded-lg px-3 md:px-4 py-2 md:py-2.5 text-sm bg-gray-50 text-gray-600"
+                  value={editLocation?.lng?.toFixed(6) || editModal.market.longitude?.toFixed(6) || 'Not set'}
+                  readOnly
+                />
+              </div>
+            </div>
+
+            {/* Ratings */}
             <div>
-              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Market Name</label>
-              <input
-                type="text"
-                name="marketName"
-                className="w-full border border-gray-300 rounded-lg px-3 md:px-4 py-2 md:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                defaultValue={editModal.market.marketName}
-                required
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Ratings</label>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => {
+                    const filled = (hoverRating || editRating) >= star
+                    const halfFilled = (hoverRating || editRating) >= star - 0.5 && (hoverRating || editRating) < star
+                    
+                    return (
+                      <div key={star} className="relative">
+                        <Star
+                          className={`w-8 h-8 cursor-pointer transition-all ${
+                            filled
+                              ? 'fill-amber-400 text-amber-400'
+                              : halfFilled
+                              ? 'fill-amber-200 text-amber-400'
+                              : 'fill-none text-gray-300 hover:text-amber-300'
+                          }`}
+                          onMouseEnter={() => setHoverRating(star)}
+                          onMouseLeave={() => setHoverRating(0)}
+                          onClick={() => setEditRating(star)}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-lg font-bold text-gray-900">{editRating.toFixed(1)}</span>
+                  <span className="text-xs text-gray-500">out of 5</span>
+                </div>
+              </div>
+              <input type="hidden" name="ratings" value={editRating} />
+              <p className="text-xs text-gray-500 mt-2">Click on stars to set rating</p>
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Description (Optional)</label>
+              <textarea
+                name="description"
+                rows={3}
+                className="w-full border border-gray-300 rounded-lg px-3 md:px-4 py-2 md:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                defaultValue={editModal.market.description || ''}
+                placeholder="Add a description for this market..."
               />
             </div>
 
-            {/* Market Type */}
+            {/* Map Section */}
             <div>
-              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Market Type</label>
-              <select
-                name="marketType"
-                className="w-full border border-gray-300 rounded-lg px-3 md:px-4 py-2 md:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer"
-                defaultValue={editModal.market.marketType}
-                required
-              >
-                <option value="WET_MARKET">Wet Market</option>
-                <option value="SUPERMARKET">Supermarket</option>
-              </select>
+              <label className="block text-xs md:text-sm font-medium text-gray-700 mb-3">
+                Market Location
+              </label>
+              
+              {/* Map Controls Row */}
+              <div className="flex flex-col md:flex-row gap-3 mb-3">
+                {/* Left: Instructions */}
+                <div className="flex-1 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    <div className="text-xs text-blue-800">
+                      <p className="font-semibold mb-1">Map Controls:</p>
+                      <ul className="space-y-0.5">
+                        <li className="hidden md:block">• <span className="font-medium">Ctrl + Scroll</span> to zoom</li>
+                        <li className="hidden md:block">• <span className="font-medium">Click & Drag</span> to pan</li>
+                        <li className="hidden md:block">• <span className="font-medium">Click</span> to set marker</li>
+                        <li className="md:hidden">• Tap "Enable Map" button first</li>
+                        <li className="md:hidden">• Tap "Done" when finished</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Right: Layer Toggle */}
+                <div className="flex md:flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setMapLayer('street')}
+                    className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                      mapLayer === 'street'
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Map className="w-3.5 h-3.5" />
+                    Street
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMapLayer('satellite')}
+                    className={`px-3 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+                      mapLayer === 'satellite'
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Satellite className="w-3.5 h-3.5" />
+                    Satellite
+                  </button>
+                </div>
+              </div>
+              
+              {/* Location Search Bar */}
+              <div className="mb-3">
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search for address or place name..."
+                      className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      value={locationSearch}
+                      onChange={(e) => setLocationSearch(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleLocationSearch()}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleLocationSearch}
+                    disabled={isSearching || !locationSearch.trim()}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {isSearching ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                        <span>Searching...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-4 h-4" />
+                        <span>Search</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                
+                {/* Search Results Dropdown */}
+                {searchResults.length > 0 && (
+                  <div className="mt-2 border border-gray-200 rounded-lg bg-white shadow-lg max-h-40 overflow-y-auto">
+                    {searchResults.map((result, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0"
+                        onClick={() => {
+                          setSearchCenter({ lat: parseFloat(result.lat), lng: parseFloat(result.lon) })
+                          setEditLocation({ lat: parseFloat(result.lat), lng: parseFloat(result.lon) })
+                          setSearchResults([])
+                          setLocationSearch('')
+                        }}
+                      >
+                        <div className="flex items-start gap-2">
+                          <MapPin className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                          <span className="text-gray-700">{result.display_name}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              {/* Map Container */}
+              <div className="border border-gray-300 rounded-lg overflow-hidden relative" style={{ height: '400px' }}>
+                {/* Mobile Map Overlay - Shows when map is disabled */}
+                {!mapInteractionEnabled && (
+                  <div 
+                    className="absolute inset-0 z-10 bg-black bg-opacity-20 flex items-center justify-center cursor-pointer backdrop-blur-[2px] md:hidden"
+                    onClick={() => setMapInteractionEnabled(true)}
+                  >
+                    <div className="bg-white rounded-lg p-4 shadow-xl text-center">
+                      <MapPin className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                      <p className="text-sm font-semibold text-gray-900 mb-1">Tap to Enable Map</p>
+                      <p className="text-xs text-gray-600">Click here to interact with the map</p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Active Map Indicator - Shows on mobile when enabled */}
+                {mapInteractionEnabled && (
+                  <div className="absolute top-2 right-2 z-10 md:hidden">
+                    <button
+                      onClick={() => setMapInteractionEnabled(false)}
+                      className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Done
+                    </button>
+                  </div>
+                )}
+                
+                <MapContainer
+                  center={
+                    editModal.market.latitude && editModal.market.longitude
+                      ? [editModal.market.latitude, editModal.market.longitude]
+                      : [14.5995, 120.9842] // Default: Metro Manila center
+                  }
+                  zoom={editModal.market.latitude && editModal.market.longitude ? 15 : 11}
+                  style={{ height: '100%', width: '100%' }}
+                  scrollWheelZoom={false}
+                  dragging={mapInteractionEnabled}
+                  touchZoom={mapInteractionEnabled}
+                  doubleClickZoom={mapInteractionEnabled}
+                  boxZoom={mapInteractionEnabled}
+                  keyboard={mapInteractionEnabled}
+                  key={`map-${editModal.market.id}`}
+                >
+                  {mapLayer === 'street' ? (
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                  ) : (
+                    <TileLayer
+                      attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+                      url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                    />
+                  )}
+                  <MapClickHandler onLocationSelect={(lat, lng) => setEditLocation({ lat, lng })} />
+                  <MapUpdater center={searchCenter} />
+                  <CtrlScrollZoom />
+                  {(editLocation || (editModal.market.latitude && editModal.market.longitude)) && (
+                    <Marker 
+                      position={
+                        editLocation 
+                          ? [editLocation.lat, editLocation.lng]
+                          : [editModal.market.latitude!, editModal.market.longitude!]
+                      }
+                      icon={redMarkerIcon}
+                    />
+                  )}
+                </MapContainer>
+              </div>
             </div>
 
             {/* Actions */}
@@ -645,15 +1224,34 @@ export function Market() {
               <button
                 type="button"
                 className="flex-1 px-4 md:px-5 py-2.5 md:py-3 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm md:text-base font-medium hover:bg-gray-50 transition-colors"
-                onClick={() => setEditModal({ open: false })}
+                onClick={() => {
+                  setEditModal({ open: false })
+                  setEditLocation(null)
+                  setMapInteractionEnabled(true)
+                  setLocationSearch('')
+                  setSearchResults([])
+                  setSearchCenter(null)
+                  setMapLayer('street')
+                }}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 md:px-5 py-2.5 md:py-3 rounded-lg bg-green-600 text-white text-sm md:text-base font-medium hover:bg-green-700 transition-colors"
+                disabled={isSaving}
+                className="flex-1 px-4 md:px-5 py-2.5 md:py-3 rounded-lg bg-teal-600 text-white text-sm md:text-base font-medium hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Save Changes
+                {isSaving ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
               </button>
             </div>
           </form>
@@ -725,9 +1323,9 @@ export function Market() {
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1.5">Status</label>
                   <span className={`inline-block px-2.5 py-1 rounded text-sm font-medium ${
-                    viewModal.market.marketStatus === 'ACTIVE' ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600'
+                    (viewModal.market.status || viewModal.market.marketStatus) === 'ACTIVE' ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600'
                   }`}>
-                    {toTitleCase(viewModal.market.marketStatus)}
+                    {toTitleCase(viewModal.market.status || viewModal.market.marketStatus || '')}
                   </span>
                 </div>
                 <div className="md:col-span-2">
@@ -737,11 +1335,11 @@ export function Market() {
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1.5">Market Type</label>
                   <span className={`inline-block text-sm px-2.5 py-1 rounded-md font-medium ${
-                    viewModal.market.marketType === 'SUPERMARKET' 
+                    (viewModal.market.type || viewModal.market.marketType) === 'SUPERMARKET' 
                       ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' 
                       : 'bg-sky-50 text-sky-700 border border-sky-100'
                   }`}>
-                    {toTitleCase(viewModal.market.marketType)}
+                    {toTitleCase(viewModal.market.type || viewModal.market.marketType || '')}
                   </span>
                 </div>
                 <div>
@@ -760,19 +1358,46 @@ export function Market() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1.5">Latitude</label>
-                  <div className="text-base text-gray-700">{viewModal.market.latitude || 'Not set'}</div>
+                  <div className="text-base text-gray-700">{viewModal.market.latitude?.toFixed(6) || 'Not set'}</div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1.5">Longitude</label>
-                  <div className="text-base text-gray-700">{viewModal.market.longitude || 'Not set'}</div>
+                  <div className="text-base text-gray-700">{viewModal.market.longitude?.toFixed(6) || 'Not set'}</div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1.5">Opening Time</label>
-                  <div className="text-base text-gray-700">{viewModal.market.openingTime || 'Not set'}</div>
+                  <div className="text-base text-gray-700">
+                    {viewModal.market.openingTime ? (
+                      new Date(viewModal.market.openingTime).toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      })
+                    ) : (
+                      'Not set'
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1.5">Closing Time</label>
-                  <div className="text-base text-gray-700">{viewModal.market.closingTime || 'Not set'}</div>
+                  <div className="text-base text-gray-700">
+                    {viewModal.market.closingTime ? (
+                      new Date(viewModal.market.closingTime).toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      })
+                    ) : (
+                      'Not set'
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1.5">Ratings</label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl font-bold text-amber-600">{viewModal.market.ratings || 0}</span>
+                    <span className="text-sm text-gray-500">out of 5</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -836,12 +1461,12 @@ export function Market() {
             </div>
 
             {/* Description */}
-            {viewModal.market.description && (
-              <div className="pt-4 border-t border-gray-200">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Description</h3>
-                <p className="text-base text-gray-700 leading-relaxed">{viewModal.market.description}</p>
-              </div>
-            )}
+            <div className="pt-4 border-t border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Description</h3>
+              <p className="text-base text-gray-700 leading-relaxed">
+                {viewModal.market.description || 'No description available'}
+              </p>
+            </div>
               </div>
 
               {/* Actions */}
