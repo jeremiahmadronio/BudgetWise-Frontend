@@ -549,6 +549,7 @@ export function Market() {
                               // Fetch full details from /view endpoint
                               const fullDetails = await fetchMarketDetails(market.id)
                               setEditModal({ open: true, market: fullDetails })
+                              setEditRating(fullDetails.ratings || 0)
                             } catch (error) {
                               console.error('Failed to fetch market details:', error)
                               alert('Failed to load market details. Please try again.')
@@ -709,6 +710,7 @@ export function Market() {
                       // Fetch full details from /view endpoint
                       const fullDetails = await fetchMarketDetails(market.id)
                       setEditModal({ open: true, market: fullDetails })
+                      setEditRating(fullDetails.ratings || 0)
                     } catch (error) {
                       console.error('Failed to fetch market details:', error)
                       alert('Failed to load market details. Please try again.')
@@ -1480,8 +1482,10 @@ export function Market() {
                 <button
                   className="flex-1 px-4 py-2 rounded-md bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors"
                   onClick={() => { 
+                    const market = viewModal.market
                     setViewModal({ open: false, loading: false })
-                    setEditModal({ open: true, market: viewModal.market })
+                    setEditModal({ open: true, market })
+                    setEditRating(market?.ratings || 0)
                   }}
                 >
                   Edit Market
