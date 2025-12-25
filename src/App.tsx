@@ -2,11 +2,12 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 // Layouts
 import { MainLayout } from './layout/MainLayout';
 import { AdminLayout } from './layout/AdminLayout';
-// Pages
+// Admin pages
 import { Dashboard } from './admin/Dashboard';
 import { Analytics } from './admin/Analytics';
 import { Customers } from './admin/Customers';
 import { ProductsPage } from './admin/Products';
+import { Market } from './admin/Market';
 import { Orders } from './admin/Orders';
 import { Settings } from './admin/Settings';
 // User pages
@@ -38,6 +39,7 @@ function App() {
           <Route path="analytics" element={<Analytics />} />
           <Route path="users" element={<Customers />} />
           <Route path="products" element={<ProductsPage />} />
+          <Route path="market" element={<Market />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
