@@ -1,18 +1,1105 @@
+/**
+ * Products Page Component
+ * Manages product catalog with features for viewing, editing, archiving products
+ * and handling newly detected products awaiting approval
+ */
 
-export function Products() {
- 
+import { useEffect, useState } from 'react'
+import {
+  fetchProductsPage,
+  fetchProductStats,
+  fetchNewProducts,
+  updateProduct,
+  updateNewcomerProduct,
+  updateProductStatus,
+  bulkUpdateStatus
+} from '../admin-api/products-api'
+import type {
+  ProductDisplayDTO,
+  ProductStatsDTO,
+  NewProductDTO,
+  ProductsPage,
+  UpdateNewcomerProductDTO
+} from '../admin-api/products-api'
+import {
+  Package,
+  TrendingUp,
+  Archive,
+  Search,
+  Eye,
+  Pencil,
+  ChevronRight,
+  AlertCircle,
+  Info,
+  Leaf,
+} from 'lucide-react'
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+const ProductStatus = {
+  ACTIVE: 'ACTIVE' as const,
+  ARCHIVED: 'ARCHIVED' as const,
+  DEACTIVATED: 'DEACTIVATED' as const,
+}
+
+export function ProductsPage() {
+  // ============================================================================
+  // State Management
+  // ============================================================================
+
+  const [products, setProducts] = useState<ProductDisplayDTO[]>([])
+  const [stats, setStats] = useState<ProductStatsDTO>({
+    totalProducts: 0,
+    activeProducts: 0,
+    archivedProducts: 0,
+    totalProductDietaryTags: 0,
+  })
+  const [newProducts, setNewProducts] = useState<NewProductDTO[]>([])
+  
+  // Search and pagination
+  const [searchTerm, setSearchTerm] = useState('')
+  const [page, setPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [pageSize] = useState(10)
+  
+  // Filters
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [originFilter, setOriginFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
+  
+  // Modals
+  const [archiveModal, setArchiveModal] = useState<{ open: boolean; product?: ProductDisplayDTO }>({ open: false })
+  const [editModal, setEditModal] = useState<{ open: boolean; product?: ProductDisplayDTO }>({ open: false })
+  const [viewModal, setViewModal] = useState<{ open: boolean; product?: ProductDisplayDTO; isNewProduct?: boolean }>({ open: false })
+  const [successModal, setSuccessModal] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+
+  // ============================================================================
+  // Data Fetching
+  // ============================================================================
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [productsPage, statsData, newProductsData] = await Promise.all([
+          fetchProductsPage(page, pageSize),
+          fetchProductStats(),
+          fetchNewProducts(),
+        ])
+        
+        setProducts(productsPage.content || [])
+        setTotalPages(productsPage.page?.totalPages || 1)
+        setStats(statsData)
+        setNewProducts(newProductsData)
+      } catch (err) {
+        console.error('Failed to fetch data:', err)
+        alert('Failed to fetch data from API. Please check your connection.')
+      }
+    }
+    
+    fetchData()
+  }, [page, pageSize])
+
+  // ============================================================================
+  // Filtering Logic
+  // ============================================================================
+
+  const filteredProducts = products.filter((product) => {
+    if (searchTerm && !product.productName.trim().toLowerCase().startsWith(searchTerm.trim().toLowerCase())) {
+      return false
+    }
+    if (categoryFilter !== 'all' && product.category !== categoryFilter) {
+      return false
+    }
+    if (originFilter !== 'all' && product.origin !== originFilter) {
+      return false
+    }
+    if (statusFilter !== 'all' && product.status !== statusFilter) {
+      return false
+    }
+    return true
+  })
+
+  const categories = Array.from(new Set(products.map(p => p.category)))
+  const origins = Array.from(new Set(products.map(p => p.origin)))
+  const statuses = Array.from(new Set(products.map(p => p.status)))
+
+  const resetFilters = () => {
+    setSearchTerm('')
+    setCategoryFilter('all')
+    setOriginFilter('all')
+    setStatusFilter('all')
+  }
+
+  // ============================================================================
+  // Utility Functions
+  // ============================================================================
+
+  const formatCurrency = (amount: number) => `₱${amount.toFixed(2)}`
+  
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+  }
+  
+  const toTitleCase = (str: string) => {
+    return str.toLowerCase().split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ')
+  }
+
+  // ============================================================================
+  // Action Handlers
+  // ============================================================================
+
+  /** Archive a product (set status to INACTIVE) */
+  const handleArchive = async (productId: number) => {
+    try {
+      const response = await fetch('http://localhost:8080/api/v1/products/updateStatus', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: productId, newStatus: 'INACTIVE' })
+      })
+
+      if (!response.ok) throw new Error('Failed to archive product')
+
+      setArchiveModal({ open: false })
+      setSuccessModal({ open: true, message: 'Product has been successfully archived!' })
+
+      // Refresh data
+      const [productsPage, statsData] = await Promise.all([
+        fetchProductsPage(page, pageSize),
+        fetchProductStats(),
+      ])
+      setProducts(productsPage.content || [])
+      setTotalPages(productsPage.page?.totalPages || 1)
+      setStats(statsData)
+    } catch (error) {
+      alert('Failed to archive product. Please try again.')
+      console.error(error)
+    }
+  }
+
+  /** Add a newcomer product (set status to ACTIVE) */
+  const handleAdd = async (productId: number) => {
+    try {
+      await updateProductStatus(productId, 'ACTIVE')
+      setSuccessModal({ open: true, message: 'Product has been successfully added!' })
+
+      // Refresh all data
+      const [productsPage, statsData, newProductsData] = await Promise.all([
+        fetchProductsPage(page, pageSize),
+        fetchProductStats(),
+        fetchNewProducts(),
+      ])
+      setProducts(productsPage.content || [])
+      setTotalPages(productsPage.page?.totalPages || 1)
+      setStats(statsData)
+      setNewProducts(newProductsData)
+    } catch (error) {
+      alert('Failed to add product. Please try again.')
+      console.error(error)
+    }
+  }
+
+  /** Ignore a newcomer product (set status to UNRECOGNIZED) */
+  const handleIgnore = async (productId: number) => {
+    try {
+      await updateProductStatus(productId, 'UNRECOGNIZED')
+      setSuccessModal({ open: true, message: 'Product has been successfully ignored!' })
+
+      // Refresh newcomers list
+      const newProductsData = await fetchNewProducts()
+      setNewProducts(newProductsData)
+    } catch (error) {
+      alert('Failed to ignore product. Please try again.')
+      console.error(error)
+    }
+  }
+
+  /** Approve all newcomer products at once */
+  const handleApproveAll = async () => {
+    try {
+      const allIds = newProducts.map(p => p.id)
+      await bulkUpdateStatus(allIds, 'ACTIVE')
+      
+      setSuccessModal({ open: true, message: 'All products have been successfully approved!' })
+
+      // Refresh all data
+      const [productsPage, statsData, newProductsData] = await Promise.all([
+        fetchProductsPage(page, pageSize),
+        fetchProductStats(),
+        fetchNewProducts(),
+      ])
+      setProducts(productsPage.content || [])
+      setTotalPages(productsPage.page?.totalPages || 1)
+      setStats(statsData)
+      setNewProducts(newProductsData)
+    } catch (error) {
+      alert('Failed to approve all products. Please try again.')
+      console.error(error)
+    }
+  }
+  
+  // ============================================================================
+  // Render
+  // ============================================================================
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Products</h1>
-          <p className="text-gray-500">Manage your product inventory.</p>
+    <div className="min-h-screen bg-gray-50 p-1 m-t-1 ">
+      <div className="max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 py-4 md:py-8">
+        {/* Header */}
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Product Catalog</h1>
+          <p className="text-sm md:text-base text-gray-600 mt-2">
+            Monitor prices, manage inventory, and track product availability across markets
+          </p>
         </div>
-       
-      </div>
 
-      
-      
-    </div>
+        {/* New Products Alert */}
+        {newProducts.length > 0 && (
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 md:p-5 mb-4 md:mb-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-3 md:mb-4 gap-2 md:gap-0">
+              <div className="flex items-start gap-2 md:gap-3">
+                <AlertCircle className="w-6 h-6 text-indigo-600 mt-0.5" />
+                <div>
+                  <h3 className="text-base font-bold text-indigo-900">
+                    NEW PRODUCTS DETECTED
+                  </h3>
+                  <p className="text-sm md:text-base text-indigo-700 mt-1">
+                    {newProducts.length} products found from recent upload
+                  </p>
+                </div>
+              </div>
+              <button 
+                className="bg-green-600 hover:bg-green-700 text-white text-sm md:text-base font-semibold px-4 md:px-5 py-2.5 rounded-lg transition-colors shadow-sm"
+                onClick={handleApproveAll}
+              >
+                Approve All
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {newProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="bg-white rounded-lg p-5 md:p-6 border border-gray-200 hover:border-gray-300 transition-all"
+                >
+                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    {/* Product Info */}
+                    <div className="flex-1 space-y-3">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="inline-block text-sm font-medium text-indigo-700 bg-indigo-100 px-3 py-1.5 rounded">
+                            {toTitleCase(product.category)}
+                          </span>
+                        </div>
+                        <h4 className="text-xl md:text-2xl font-bold text-gray-900">
+                          {product.productName}
+                        </h4>
+                      </div>
+                      
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-base md:text-lg">
+                        <div className="text-gray-700">
+                          <span className="font-semibold">{product.origin}</span>
+                        </div>
+                        <div className="text-gray-700">
+                          <span className="font-semibold">{product.totalMarkets}</span> <span className="text-gray-600">markets</span>
+                        </div>
+                        <div className="text-gray-700">
+                          <span className="font-semibold">{product.unit}</span>
+                        </div>
+                        <div className="text-gray-600">
+                          {formatDate(product.detectedDate)}
+                        </div>
+                        <div className="text-xl font-bold text-gray-900">
+                          {formatCurrency(product.price)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                      <button 
+                        className="px-4 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm md:text-base font-semibold transition-colors shadow-sm"
+                        onClick={() => setViewModal({ open: true, product: { ...product, status: ProductStatus.ACTIVE, totalDietaryTags: 0, lastUpdated: product.detectedDate } as ProductDisplayDTO, isNewProduct: true })}
+                        title="View details"
+                      >
+                        View
+                      </button>
+                      <button 
+                        className="px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm md:text-base font-semibold transition-colors shadow-sm"
+                        onClick={() => setEditModal({ open: true, product: { ...product, totalDietaryTags: 0, lastUpdated: product.detectedDate } as any })}
+                        title="Edit product"
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        className="px-4 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm md:text-base font-semibold transition-colors shadow-sm"
+                        onClick={() => handleAdd(product.id)}
+                        title="Add to catalog"
+                      >
+                        Add
+                      </button>
+                      <button 
+                        className="px-4 py-2.5 rounded-lg bg-gray-500 hover:bg-gray-600 text-white text-sm md:text-base font-semibold transition-colors shadow-sm"
+                        onClick={() => handleIgnore(product.id)}
+                        title="Ignore this product"
+                      >
+                        Ignore
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mb-4 md:mb-6">
+          <div className="bg-white border border-gray-200 rounded-lg p-5">
+            <div className="flex items-start justify-between mb-3">
+              <span className="text-sm md:text-base font-medium text-gray-700">Total Products</span>
+              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                <Package className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+            <div className="text-3xl md:text-4xl font-bold text-gray-900">
+              {stats.totalProducts}
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-lg p-5">
+            <div className="flex items-start justify-between mb-3">
+              <span className="text-sm md:text-base font-medium text-gray-700">Active Products</span>
+              <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-teal-600" />
+              </div>
+            </div>
+            <div className="text-3xl md:text-4xl font-bold text-gray-900">
+              {stats.activeProducts}
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-lg p-5">
+            <div className="flex items-start justify-between mb-3">
+              <span className="text-sm md:text-base font-medium text-gray-700">Archived</span>
+              <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center">
+                <Archive className="w-6 h-6 text-amber-600" />
+              </div>
+            </div>
+            <div className="text-3xl md:text-4xl font-bold text-gray-900">
+              {stats.archivedProducts}
+            </div>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-lg p-5">
+            <div className="flex items-start justify-between mb-3">
+              <span className="text-sm md:text-base font-medium text-gray-700">Dietary Tags</span>
+              <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+                <Leaf className="w-6 h-6 text-purple-600" />
+              </div>
+            </div>
+            <div className="text-3xl md:text-4xl font-bold text-gray-900">
+              {stats.totalProductDietaryTags}
+            </div>
+          </div>
+        </div>
+
+        {/* Info Banner */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 md:p-5 mb-4 md:mb-6 flex flex-col md:flex-row gap-2 md:gap-3">
+          <Info className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="text-base font-bold text-blue-900 mb-1">
+              Quick Tip: Product Management
+            </h4>
+            <p className="text-sm md:text-base text-blue-700">
+              Click on market counts to view detailed coverage. Use search to
+              quickly find products by name, category, or local name.
+            </p>
+          </div>
+        </div>
+
+        {/* Search and Filters - Single Row */}
+        <div className="mb-6">
+          <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
+            {/* Search Bar */}
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search products..."
+                className="w-full pl-12 pr-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-base font-semibold text-gray-700 flex items-center gap-2 whitespace-nowrap">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                </svg>
+                Filters:
+              </span>
+              <select
+                className="px-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer hover:border-gray-400 transition-colors"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+              >
+                <option value="all">All Categories</option>
+                {categories.map(cat => <option key={cat} value={cat}>{toTitleCase(cat)}</option>)}
+              </select>
+              <select
+                className="px-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer hover:border-gray-400 transition-colors"
+                value={originFilter}
+                onChange={(e) => setOriginFilter(e.target.value)}
+              >
+                <option value="all">All Origins</option>
+                {origins.map(org => <option key={org} value={org}>{org}</option>)}
+              </select>
+              <select
+                className="px-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer hover:border-gray-400 transition-colors"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All Status</option>
+                {statuses.map(status => <option key={status} value={status}>{toTitleCase(status)}</option>)}
+              </select>
+              <button
+                onClick={resetFilters}
+                className="px-4 py-3 text-base text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-semibold rounded-lg transition-colors"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Products Table (desktop) */}
+        <div className="hidden md:block bg-white border border-gray-200 rounded-lg overflow-x-auto shadow-sm">
+          <div className="w-full min-w-[350px] md:min-w-0">
+            <table className="min-w-[700px] w-full text-sm md:text-base">
+              {/* ...existing code for table header and rows... */}
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="text-center py-3 px-3 md:px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                  <th className="text-left py-3 px-3 md:px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                  <th className="text-center py-3 px-3 md:px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                  <th className="text-center py-3 px-3 md:px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                  <th className="text-center py-3 px-3 md:px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="text-center py-3 px-3 md:px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProducts.map((product) => (
+                  <tr key={product.id} className="hover:bg-gray-50 transition-colors border-b border-gray-100">
+                    <td className="py-3 md:py-4 px-3 md:px-4 text-center">
+                      <div className="text-base text-gray-600">PR-{String(product.id).padStart(5, '0')}</div>
+                    </td>
+                    <td className="py-3 md:py-4 px-3 md:px-4 text-left">
+                      <div className="text-base font-medium text-gray-900">{product.productName}</div>
+                    </td>
+                    <td className="py-3 md:py-4 px-3 md:px-4 text-center"><span className="text-base text-gray-700">{toTitleCase(product.category)}</span></td>
+                    <td className="py-3 md:py-4 px-3 md:px-4 text-center"><span className="text-base font-semibold text-gray-900">{formatCurrency(product.price)}</span></td>
+                    <td className="py-3 md:py-4 px-3 md:px-4 text-center">
+                      <span className={`text-sm px-3 py-1 rounded-md font-medium inline-block ${
+                        product.status === 'ACTIVE' ? 'bg-teal-50 text-teal-600 border border-teal-200' : 
+                        product.status === 'ARCHIVED' ? 'bg-amber-50 text-amber-600 border border-amber-200' : 
+                        'bg-rose-50 text-rose-600 border border-rose-200'
+                      }`}>{toTitleCase(product.status)}</span>
+                    </td>
+                    <td className="py-3 md:py-4 px-3 md:px-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="View Details" onClick={() => setViewModal({ open: true, product })}><Eye className="w-5 h-5" /></button>
+                        <button className="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-md transition-colors" title="Edit" onClick={() => setEditModal({ open: true, product })}><Pencil className="w-5 h-5" /></button>
+                        <button className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors" title="Archive" onClick={() => setArchiveModal({ open: true, product })}><Archive className="w-5 h-5" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {filteredProducts.length === 0 && (
+            <div className="py-8 md:py-12 text-center text-gray-500">
+              <p className="text-xs md:text-sm">No products found matching "{searchTerm}"</p>
+            </div>
+          )}
+          {/* Pagination Controls */}
+          <div className="flex justify-center items-center gap-3 py-5">
+            <button className="px-5 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-base font-semibold disabled:opacity-50 transition-colors" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>Prev</button>
+            <span className="text-base font-medium text-gray-700">Page {page + 1} of {totalPages}</span>
+            <button className="px-5 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-base font-semibold disabled:opacity-50 transition-colors" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>Next</button>
+          </div>
+        </div>
+
+        {/* Products Card View (mobile) */}
+        <div className="block md:hidden space-y-4">
+          {filteredProducts.length === 0 && (
+            <div className="py-8 text-center text-gray-500">
+              <p className="text-xs">No products found matching "{searchTerm}"</p>
+            </div>
+          )}
+          {filteredProducts.map((product) => (
+            <div key={product.id} className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <div className="font-bold text-gray-900 text-xl leading-tight">{product.productName}</div>
+                  <div className="text-base text-gray-600 italic mt-1">{product.localName || 'N/A'}</div>
+                </div>
+                <span className={`text-sm px-3 py-1.5 rounded-full font-bold whitespace-nowrap ${
+                  product.status === 'ACTIVE' ? 'bg-teal-100 text-teal-800' : 
+                  product.status === 'ARCHIVED' ? 'bg-amber-100 text-amber-800' : 
+                  'bg-rose-100 text-rose-800'
+                }`}>{toTitleCase(product.status)}</span>
+              </div>
+
+              {/* Category & Origin */}
+              <div className="flex items-center gap-2 text-base text-gray-700">
+                <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
+                <span className="font-medium">{toTitleCase(product.category)}</span>
+              </div>
+              <div className="flex items-center gap-2 text-base text-gray-700">
+                <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <span className="font-medium">{product.origin}</span>
+              </div>
+              <div className="flex items-center gap-2 text-base text-gray-700">
+                <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>
+                <span className="font-medium">{product.unit}</span>
+              </div>
+
+              {/* Markets & Dietary Tags */}
+              <div className="flex flex-col gap-3 mt-1">
+                <button className="flex items-center text-base text-teal-800 bg-teal-50 hover:bg-teal-100 rounded-lg px-4 py-3 font-semibold gap-2 transition-colors w-full">
+                  <span className="w-2.5 h-2.5 bg-teal-600 rounded-full"></span>
+                  <span className="flex-1 text-left">{product.totalMarkets} Markets Available</span>
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+                <button className="flex items-center text-base text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg px-4 py-3 font-semibold gap-2 transition-colors w-full">
+                  <span className="w-2.5 h-2.5 bg-gray-500 rounded-full"></span>
+                  <span className="flex-1 text-left">{product.totalDietaryTags} Dietary Tags</span>
+                  <ChevronRight className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              {/* Price */}
+              <div className="mt-2">
+                <div className="text-3xl font-bold text-gray-900">{formatCurrency(product.price)}</div>
+                <div className="text-base text-gray-600 mt-1">per {product.unit}</div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3 mt-2 pt-4 border-t border-gray-200">
+                <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-teal-300 bg-teal-50 text-teal-700 text-base font-semibold hover:bg-teal-100 hover:border-teal-400 transition-all" title="Edit" onClick={() => setEditModal({ open: true, product })}>
+                  <Pencil className="w-5 h-5" />
+                  <span>Edit</span>
+                </button>
+                <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-amber-300 bg-amber-50 text-amber-700 text-base font-semibold hover:bg-amber-100 hover:border-amber-400 transition-all" title="Archive" onClick={() => setArchiveModal({ open: true, product })}>
+                  <Archive className="w-5 h-5" />
+                  <span>Archive</span>
+                </button>
+              </div>
+            </div>
+          ))}
+          {/* Pagination Controls (mobile) */}
+          {filteredProducts.length > 0 && (
+            <div className="flex justify-center items-center gap-3 py-5">
+              <button className="px-5 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-base font-semibold disabled:opacity-50 transition-colors" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>Prev</button>
+              <span className="text-base font-medium text-gray-700">Page {page + 1} of {totalPages}</span>
+              <button className="px-5 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-base font-semibold disabled:opacity-50 transition-colors" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>Next</button>
+            </div>
+          )}
+        </div>
+      </div>
+    {/* Archive Modal */}
+    {archiveModal.open && archiveModal.product && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-3 md:p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-4 md:p-6 animate-fadeIn max-h-[90vh] overflow-y-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-3 md:mb-4">
+            <h2 className="text-lg md:text-xl font-bold text-gray-900">Archive Product</h2>
+            <button
+              onClick={() => setArchiveModal({ open: false })}
+              className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="space-y-3 md:space-y-4">
+            <p className="text-sm md:text-base text-gray-900">
+              Are you sure you want to archive <span className="font-bold">{archiveModal.product.productName}</span>?
+            </p>
+            <p className="text-xs md:text-sm text-gray-600">
+              This product is currently active in <span className="font-semibold">{archiveModal.product.totalMarkets} markets</span>.
+            </p>
+
+            {/* Warning Box */}
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 md:p-4">
+              <p className="text-xs md:text-sm font-semibold text-amber-900 mb-2 md:mb-3">What happens when you archive:</p>
+              <ul className="space-y-1.5 md:space-y-2 text-xs md:text-sm text-amber-800">
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-600 mt-0.5">•</span>
+                  <span>Product will be hidden from active lists</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-600 mt-0.5">•</span>
+                  <span>All historical price data will be preserved</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-600 mt-0.5">•</span>
+                  <span>System will stop tracking new prices</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-amber-600 mt-0.5">•</span>
+                  <span>You can restore it later if needed</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2 md:gap-3 mt-4 md:mt-6">
+            <button
+              className="flex-1 px-4 md:px-5 py-2 md:py-2.5 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm md:text-base font-medium hover:bg-gray-50 transition-colors"
+              onClick={() => setArchiveModal({ open: false })}
+            >
+              Cancel
+            </button>
+            <button
+              className="flex-1 px-4 md:px-5 py-2 md:py-2.5 rounded-lg bg-rose-600 text-white text-sm md:text-base font-medium hover:bg-rose-700 transition-colors"
+              onClick={() => handleArchive(archiveModal.product!.id)}
+            >
+              Archive
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Edit Modal */}
+    {editModal.open && editModal.product && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-3 md:p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-4 md:p-6 animate-fadeIn max-h-[90vh] overflow-y-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4 md:mb-6">
+            <h2 className="text-lg md:text-xl font-bold text-gray-900">Edit Product</h2>
+            <button
+              onClick={() => setEditModal({ open: false })}
+              className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Form */}
+          <form className="space-y-3 md:space-y-5" onSubmit={async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            
+            // Check if this is a new product (doesn't have status field)
+            const isNewProduct = !formData.has('status');
+            
+            if (isNewProduct) {
+              const updateData: UpdateNewcomerProductDTO = {
+                productName: formData.get('productName') as string,
+                localName: formData.get('localName') as string || null,
+                category: formData.get('category') as string,
+                origin: formData.get('origin') as string,
+              };
+              
+              try {
+                await updateNewcomerProduct(editModal.product!.id, updateData);
+                setEditModal({ open: false });
+                setSuccessModal({ 
+                  open: true, 
+                  message: 'Product has been successfully updated!' 
+                });
+                
+                // Refresh data
+                const [productsPage, statsData, newProductsData] = await Promise.all([
+                  fetchProductsPage(page, pageSize),
+                  fetchProductStats(),
+                  fetchNewProducts(),
+                ]);
+                setProducts(productsPage.content || []);
+                setTotalPages(productsPage.page?.totalPages || 1);
+                setStats(statsData);
+                setNewProducts(newProductsData);
+              } catch (error) {
+                alert('Failed to update product. Please try again.');
+                console.error(error);
+              }
+            } else {
+              const updateData = {
+                localName: formData.get('localName') as string || null,
+                price: parseFloat(formData.get('price') as string),
+                unit: formData.get('unit') as string,
+                status: formData.get('status') as string
+              };
+              
+              try {
+                await updateProduct(editModal.product!.id, updateData);
+                setEditModal({ open: false });
+                setSuccessModal({ 
+                  open: true, 
+                  message: 'Product has been successfully updated!' 
+                });
+                
+                // Refresh data
+                const [productsPage, statsData] = await Promise.all([
+                  fetchProductsPage(page, pageSize),
+                  fetchProductStats(),
+                ]);
+                setProducts(productsPage.content || []);
+                setTotalPages(productsPage.page?.totalPages || 1);
+                setStats(statsData);
+              } catch (error) {
+                alert('Failed to update product. Please try again.');
+                console.error(error);
+              }
+            }
+          }}>
+            {/* Row 1: Product Name & Local Name */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Product Name</label>
+                <input
+                  type="text"
+                  name="productName"
+                  className={`w-full border border-gray-300 rounded-lg px-4 py-2.5 text-sm ${
+                    editModal.product.status ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                  }`}
+                  defaultValue={editModal.product.productName}
+                  disabled={!!editModal.product.status}
+                  readOnly={!!editModal.product.status}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Local Name</label>
+                <input
+                  type="text"
+                  name="localName"
+                  className="w-full border border-gray-300 rounded-lg px-3 md:px-4 py-2 md:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  defaultValue={editModal.product.localName || ''}
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+
+            {/* Row 2: Category & Origin */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Category</label>
+                <input
+                  type="text"
+                  name="category"
+                  className={`w-full border border-gray-300 rounded-lg px-3 md:px-4 py-2 md:py-2.5 text-sm ${
+                    editModal.product.status ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                  }`}
+                  defaultValue={editModal.product.category}
+                  disabled={!!editModal.product.status}
+                  readOnly={!!editModal.product.status}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Origin</label>
+                <input
+                  type="text"
+                  name="origin"
+                  className={`w-full border border-gray-300 rounded-lg px-3 md:px-4 py-2 md:py-2.5 text-sm ${
+                    editModal.product.status ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                  }`}
+                  defaultValue={editModal.product.origin}
+                  disabled={!!editModal.product.status}
+                  readOnly={!!editModal.product.status}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Row 3: Price & Unit - Only shown for existing products */}
+            {editModal.product.status && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                <div>
+                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Price</label>
+                  <div className="relative">
+                    <span className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₱</span>
+                    <input
+                      type="number"
+                      name="price"
+                      step="0.01"
+                      className="w-full border border-gray-300 rounded-lg pl-7 md:pl-8 pr-3 md:pr-4 py-2 md:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      defaultValue={editModal.product.price}
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs md:text-sm font-medium text-gray-700 mb-1.5 md:mb-2">Unit</label>
+                  <input
+                    type="text"
+                    name="unit"
+                    className="w-full border border-gray-300 rounded-lg px-3 md:px-4 py-2 md:py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    defaultValue={editModal.product.unit}
+                    required
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-2 md:gap-3 mt-4 md:mt-6 pt-3 md:pt-4 border-t border-gray-200">
+              <button
+                type="button"
+                className="flex-1 px-4 md:px-5 py-2.5 md:py-3 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm md:text-base font-medium hover:bg-gray-50 transition-colors"
+                onClick={() => setEditModal({ open: false })}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="flex-1 px-4 md:px-5 py-2.5 md:py-3 rounded-lg bg-green-600 text-white text-sm md:text-base font-medium hover:bg-green-700 transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
+
+    {/* View Modal */}
+    {viewModal.open && viewModal.product && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-3 md:p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-4 md:p-6 animate-fadeIn max-h-[90vh] overflow-y-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4 md:mb-6">
+            <h2 className="text-lg md:text-xl font-bold text-gray-900">Product Details</h2>
+            <button
+              onClick={() => setViewModal({ open: false })}
+              className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="space-y-3 md:space-y-5">
+            {/* Row 1: ID & Status */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Product ID</label>
+                <div className="text-base md:text-lg font-semibold text-gray-900">PR-{String(viewModal.product.id).padStart(5, '0')}</div>
+              </div>
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Status</label>
+                <span className={`inline-block text-xs md:text-sm px-3 py-1.5 rounded-full font-bold ${
+                  viewModal.product.status === 'ACTIVE' ? 'bg-teal-100 text-teal-700' : 
+                  viewModal.product.status === 'ARCHIVED' ? 'bg-amber-100 text-amber-700' : 
+                  'bg-rose-100 text-rose-700'
+                }`}>{toTitleCase(viewModal.product.status)}</span>
+              </div>
+            </div>
+
+            {/* Row 2: Product Name & Local Name */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Product Name</label>
+                <div className="text-base md:text-lg font-semibold text-gray-900">{viewModal.product.productName}</div>
+              </div>
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Local Name</label>
+                <div className="text-base md:text-lg text-gray-700">{viewModal.product.localName || <span className="italic text-gray-400">N/A</span>}</div>
+              </div>
+            </div>
+
+            {/* Row 3: Category & Origin */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Category</label>
+                <div className="text-base md:text-lg text-gray-700">{toTitleCase(viewModal.product.category)}</div>
+              </div>
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Origin</label>
+                <div className="text-base md:text-lg text-gray-700">{viewModal.product.origin}</div>
+              </div>
+            </div>
+
+            {/* Row 4: Price & Unit */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Price</label>
+                <div className="text-xl md:text-2xl font-bold text-gray-900">{formatCurrency(viewModal.product.price)}</div>
+              </div>
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Unit</label>
+                <div className="text-base md:text-lg text-gray-700">{viewModal.product.unit}</div>
+              </div>
+            </div>
+
+            {/* Row 5: Markets & Dietary Tags */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Markets Available</label>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl md:text-2xl font-bold text-teal-600">{viewModal.product.totalMarkets}</span>
+                  <span className="text-base text-gray-600">markets</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Dietary Tags</label>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl md:text-2xl font-bold text-purple-600">{viewModal.product.totalDietaryTags}</span>
+                  <span className="text-base text-gray-600">tags</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Row 6: Last Updated */}
+            <div>
+              <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Last Updated</label>
+              <div className="text-base md:text-lg text-gray-700">{formatDate(viewModal.product.lastUpdated)}</div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2 md:gap-3 mt-4 md:mt-6 pt-3 md:pt-4 border-t border-gray-200">
+            <button
+              className="flex-1 px-4 md:px-5 py-2.5 md:py-3 rounded-lg bg-gray-100 text-gray-700 text-sm md:text-base font-medium hover:bg-gray-200 transition-colors"
+              onClick={() => setViewModal({ open: false })}
+            >
+              Close
+            </button>
+            <button
+              className="flex-1 px-4 md:px-5 py-2.5 md:py-3 rounded-lg bg-teal-600 text-white text-sm md:text-base font-medium hover:bg-teal-700 transition-colors"
+              onClick={() => { 
+                setViewModal({ open: false }); 
+                if (viewModal.isNewProduct) {
+                  // Remove status and other fields to treat as new product
+                  const { status, ...productWithoutStatus } = viewModal.product!;
+                  setEditModal({ open: true, product: productWithoutStatus as any });
+                } else {
+                  setEditModal({ open: true, product: viewModal.product });
+                }
+              }}
+            >
+              Edit Product
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Success Modal */}
+    {successModal.open && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4" style={{
+        background: 'rgba(0, 0, 0, 0)',
+        animation: 'fadeInBg 0.3s ease-out forwards'
+      }}>
+        <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 md:p-8 text-center" style={{
+          opacity: 0,
+          transform: 'scale(0.9) translateY(20px)',
+          animation: 'smoothFadeIn 0.5s ease-out 0.1s forwards'
+        }}>
+          {/* Success Icon */}
+          <div className="mx-auto w-16 h-16 md:w-20 md:h-20 bg-teal-50 rounded-full flex items-center justify-center mb-4 md:mb-6" style={{
+            opacity: 0,
+            transform: 'scale(0.8)',
+            animation: 'smoothScale 0.4s ease-out 0.3s forwards'
+          }}>
+            <svg className="w-8 h-8 md:w-10 md:h-10 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{
+              strokeDasharray: 100,
+              strokeDashoffset: 100,
+              animation: 'drawCheckSmooth 0.6s ease-out 0.5s forwards'
+            }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+
+          {/* Success Message */}
+          <h2 className="text-xl md:text-2xl font-bold text-teal-600 mb-2 md:mb-3" style={{
+            opacity: 0,
+            transform: 'translateY(10px)',
+            animation: 'smoothFadeUp 0.4s ease-out 0.6s forwards'
+          }}>Oh Yeah!</h2>
+          <p className="text-sm md:text-base text-gray-600 mb-6 md:mb-8" style={{
+            opacity: 0,
+            transform: 'translateY(10px)',
+            animation: 'smoothFadeUp 0.4s ease-out 0.7s forwards'
+          }}>{successModal.message}</p>
+
+          {/* OK Button */}
+          <button
+            className="px-8 md:px-10 py-2.5 md:py-3 rounded-lg bg-teal-600 text-white text-sm md:text-base font-semibold hover:bg-teal-700 transition-all shadow-md hover:scale-105 hover:shadow-lg active:scale-95"
+            style={{
+              opacity: 0,
+              transform: 'translateY(10px)',
+              animation: 'smoothFadeUp 0.4s ease-out 0.8s forwards'
+            }}
+            onClick={() => setSuccessModal({ open: false, message: '' })}
+          >
+            Ok
+          </button>
+        </div>
+        
+        {/* Smooth Keyframe Animations */}
+        <style>{`
+          @keyframes fadeInBg {
+            from {
+              background: rgba(0, 0, 0, 0);
+            }
+            to {
+              background: rgba(0, 0, 0, 0.4);
+            }
+          }
+          
+          @keyframes smoothFadeIn {
+            to {
+              opacity: 1;
+              transform: scale(1) translateY(0);
+            }
+          }
+          
+          @keyframes smoothScale {
+            to {
+              opacity: 1;
+              transform: scale(1);
+            }
+          }
+          
+          @keyframes drawCheckSmooth {
+            to {
+              stroke-dashoffset: 0;
+            }
+          }
+          
+          @keyframes smoothFadeUp {
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+        `}</style>
+      </div>
+    )}
+  </div>
   )
 }

@@ -6,7 +6,7 @@ import { AdminLayout } from './layout/AdminLayout';
 import { Dashboard } from './admin/Dashboard';
 import { Analytics } from './admin/Analytics';
 import { Customers } from './admin/Customers';
-import { Products } from './admin/Products';
+import { ProductsPage } from './admin/Products';
 import { Orders } from './admin/Orders';
 import { Settings } from './admin/Settings';
 // User pages
@@ -28,7 +28,7 @@ function App() {
           <Route path="/profile" element={<UserProfile />} />
           <Route path="/settings" element={<UserSettings />} />
           <Route path="/customers" element={<Customers />} />
-          <Route path="/products" element={<Products />} />
+         
           <Route path="/orders" element={<Orders />} />
         </Route>
 
@@ -37,7 +37,7 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="users" element={<Customers />} />
-          <Route path="products" element={<Products />} />
+          <Route path="products" element={<ProductsPage />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>

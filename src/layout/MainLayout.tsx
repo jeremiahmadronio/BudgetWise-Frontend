@@ -1,17 +1,12 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
-import { Sidebar } from '../components/Sidebar'
-import { MobileNav } from '../components/MobileNav'
+import { UserSidebar } from '../components/UserSidebar'
 import { Header } from '../components/Header'
 export function MainLayout() {
-  const [isExpanded, setIsExpanded] = useState(true)
+  const [isExpanded, setIsExpanded] = useState(true);
   return (
     <div className="min-h-screen bg-gray-50 font-sans antialiased overflow-x-hidden">
-      <Sidebar
-        menuType="user"
-        isExpanded={isExpanded}
-        toggleSidebar={() => setIsExpanded(!isExpanded)}
-      />
+      <UserSidebar isExpanded={isExpanded} toggleSidebar={() => setIsExpanded(!isExpanded)} />
 
       <Header />
 
@@ -22,10 +17,9 @@ export function MainLayout() {
           <Outlet />
         </div>
       </main>
-      <MobileNav menuType="user" />
-
+      {/* UserSidebar handles mobile nav as well */}
     </div>
-  )
+  );
 }
 
  
