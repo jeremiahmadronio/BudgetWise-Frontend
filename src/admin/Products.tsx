@@ -67,7 +67,6 @@ export function ProductsPage() {
   // Filters
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [originFilter, setOriginFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all')
   
   // Modals
   const [archiveModal, setArchiveModal] = useState<{ open: boolean; product?: ProductDisplayDTO }>({ open: false })
@@ -115,21 +114,16 @@ export function ProductsPage() {
     if (originFilter !== 'all' && product.origin !== originFilter) {
       return false
     }
-    if (statusFilter !== 'all' && product.status !== statusFilter) {
-      return false
-    }
     return true
   })
 
   const categories = Array.from(new Set(products.map(p => p.category)))
   const origins = Array.from(new Set(products.map(p => p.origin)))
-  const statuses = Array.from(new Set(products.map(p => p.status)))
 
   const resetFilters = () => {
     setSearchTerm('')
     setCategoryFilter('all')
     setOriginFilter('all')
-    setStatusFilter('all')
   }
 
   // ============================================================================
@@ -262,8 +256,8 @@ export function ProductsPage() {
 
         {/* New Products Alert */}
         {newProducts.length > 0 && (
-          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 md:p-5 mb-4 md:mb-6">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-3 md:mb-4 gap-2 md:gap-0">
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 md:p-5 mb-4 md:mb-6">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-4 gap-3">
               <div className="flex items-start gap-2 md:gap-3">
                 <AlertCircle className="w-6 h-6 text-indigo-600 mt-0.5" />
                 <div>
@@ -323,7 +317,7 @@ export function ProductsPage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 flex-shrink-0 min-w-[280px] sm:min-w-0">
                       <button 
                         className="px-4 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm md:text-base font-semibold transition-colors shadow-sm"
                         onClick={() => setViewModal({ open: true, product: { ...product, status: ProductStatus.ACTIVE, totalDietaryTags: 0, lastUpdated: product.detectedDate } as ProductDisplayDTO, isNewProduct: true })}
@@ -361,7 +355,7 @@ export function ProductsPage() {
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mb-4 md:mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
           <div className="bg-white border border-gray-200 rounded-lg p-5">
             <div className="flex items-start justify-between mb-3">
               <span className="text-sm md:text-base font-medium text-gray-700">Total Products</span>
@@ -429,7 +423,7 @@ export function ProductsPage() {
         <div className="mb-6">
           <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
             {/* Search Bar */}
-            <div className="relative flex-1">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
@@ -442,14 +436,14 @@ export function ProductsPage() {
 
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-base font-semibold text-gray-700 flex items-center gap-2 whitespace-nowrap">
+              <span className="text-base font-semibold text-gray-700 flex items-center gap-2 whitespace-nowrap w-full sm:w-auto">
                 <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                 </svg>
                 Filters:
               </span>
               <select
-                className="px-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer hover:border-gray-400 transition-colors"
+                className="flex-1 sm:flex-none min-w-[160px] px-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer hover:border-gray-400 transition-colors"
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
               >
@@ -457,24 +451,16 @@ export function ProductsPage() {
                 {categories.map(cat => <option key={cat} value={cat}>{toTitleCase(cat)}</option>)}
               </select>
               <select
-                className="px-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer hover:border-gray-400 transition-colors"
+                className="flex-1 sm:flex-none min-w-[140px] px-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer hover:border-gray-400 transition-colors"
                 value={originFilter}
                 onChange={(e) => setOriginFilter(e.target.value)}
               >
                 <option value="all">All Origins</option>
                 {origins.map(org => <option key={org} value={org}>{org}</option>)}
               </select>
-              <select
-                className="px-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer hover:border-gray-400 transition-colors"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">All Status</option>
-                {statuses.map(status => <option key={status} value={status}>{toTitleCase(status)}</option>)}
-              </select>
               <button
                 onClick={resetFilters}
-                className="px-4 py-3 text-base text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-semibold rounded-lg transition-colors"
+                className="flex-1 sm:flex-none px-4 py-3 text-base text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-semibold rounded-lg transition-colors whitespace-nowrap"
               >
                 Reset
               </button>
@@ -483,7 +469,7 @@ export function ProductsPage() {
         </div>
 
         {/* Products Table (desktop) */}
-        <div className="hidden md:block bg-white border border-gray-200 rounded-lg overflow-x-auto shadow-sm">
+        <div className="hidden lg:block bg-white border border-gray-200 rounded-lg overflow-x-auto shadow-sm">
           <div className="w-full min-w-[350px] md:min-w-0">
             <table className="min-w-[700px] w-full text-sm md:text-base">
               {/* ...existing code for table header and rows... */}
@@ -540,8 +526,8 @@ export function ProductsPage() {
           </div>
         </div>
 
-        {/* Products Card View (mobile) */}
-        <div className="block md:hidden space-y-4">
+        {/* Products Card View (mobile & tablet) */}
+        <div className="block lg:hidden space-y-4">
           {filteredProducts.length === 0 && (
             <div className="py-8 text-center text-gray-500">
               <p className="text-xs">No products found matching "{searchTerm}"</p>
