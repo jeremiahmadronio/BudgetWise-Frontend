@@ -32,6 +32,7 @@ import {
   AlertCircle,
   Info,
   Leaf,
+  CheckCircle
 } from 'lucide-react'
 
 // ============================================================================
@@ -57,6 +58,7 @@ export function ProductsPage() {
     totalProductDietaryTags: 0,
   })
   const [newProducts, setNewProducts] = useState<NewProductDTO[]>([])
+  const [selectedProducts, setSelectedProducts] = useState<number[]>([])
   
   // Search and pagination
   const [searchTerm, setSearchTerm] = useState('')
@@ -69,9 +71,9 @@ export function ProductsPage() {
   const [originFilter, setOriginFilter] = useState('all')
   
   // Modals
-  const [archiveModal, setArchiveModal] = useState<{ open: boolean; product?: ProductDisplayDTO }>({ open: false })
   const [editModal, setEditModal] = useState<{ open: boolean; product?: ProductDisplayDTO }>({ open: false })
   const [viewModal, setViewModal] = useState<{ open: boolean; product?: ProductDisplayDTO; isNewProduct?: boolean }>({ open: false })
+  const [bulkArchiveModal, setBulkArchiveModal] = useState<{ open: boolean; count: number }>({ open: false, count: 0 })
   const [successModal, setSuccessModal] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
 
   // ============================================================================
@@ -150,34 +152,6 @@ export function ProductsPage() {
   // Action Handlers
   // ============================================================================
 
-  /** Archive a product (set status to INACTIVE) */
-  const handleArchive = async (productId: number) => {
-    try {
-      const response = await fetch('http://localhost:8080/api/v1/products/updateStatus', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: productId, newStatus: 'INACTIVE' })
-      })
-
-      if (!response.ok) throw new Error('Failed to archive product')
-
-      setArchiveModal({ open: false })
-      setSuccessModal({ open: true, message: 'Product has been successfully archived!' })
-
-      // Refresh data
-      const [productsPage, statsData] = await Promise.all([
-        fetchProductsPage(page, pageSize),
-        fetchProductStats(),
-      ])
-      setProducts(productsPage.content || [])
-      setTotalPages(productsPage.page?.totalPages || 1)
-      setStats(statsData)
-    } catch (error) {
-      alert('Failed to archive product. Please try again.')
-      console.error(error)
-    }
-  }
-
   /** Add a newcomer product (set status to ACTIVE) */
   const handleAdd = async (productId: number) => {
     try {
@@ -238,14 +212,65 @@ export function ProductsPage() {
       console.error(error)
     }
   }
+
+  /** Toggle individual product selection */
+  const toggleProductSelection = (productId: number) => {
+    setSelectedProducts(prev => 
+      prev.includes(productId) 
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+    )
+  }
+
+  /** Toggle all products selection */
+  const toggleAllProducts = () => {
+    if (selectedProducts.length === filteredProducts.length) {
+      setSelectedProducts([])
+    } else {
+      setSelectedProducts(filteredProducts.map(p => p.id))
+    }
+  }
+
+  /** Archive selected products (bulk operation) */
+  const handleBulkArchive = async () => {
+    if (selectedProducts.length === 0) {
+      alert('Please select at least one product to archive.')
+      return
+    }
+
+    // Open the modal instead of using confirm
+    setBulkArchiveModal({ open: true, count: selectedProducts.length })
+  }
+
+  /** Confirm bulk archive operation */
+  const confirmBulkArchive = async () => {
+    try {
+      await bulkUpdateStatus(selectedProducts, 'INACTIVE')
+      setBulkArchiveModal({ open: false, count: 0 })
+      setSuccessModal({ open: true, message: `Successfully archived ${selectedProducts.length} product(s)!` })
+      setSelectedProducts([])
+
+      // Refresh data
+      const [productsPage, statsData] = await Promise.all([
+        fetchProductsPage(page, pageSize),
+        fetchProductStats(),
+      ])
+      setProducts(productsPage.content || [])
+      setTotalPages(productsPage.page?.totalPages || 1)
+      setStats(statsData)
+    } catch (error) {
+      alert('Failed to archive selected products. Please try again.')
+      console.error(error)
+    }
+  }
   
   // ============================================================================
   // Render
   // ============================================================================
 
   return (
-    <div className="min-h-screen bg-gray-50 p-1 m-t-1 ">
-      <div className="max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 py-4 md:py-8">
+    <div className="min-h-screen bg-gray-50  ">
+      <div className="max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 pt-2 md:pt-4 pb-4 md:pb-8">
         {/* Header */}
         <div className="mb-6 md:mb-8">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Product Catalog</h1>
@@ -256,24 +281,19 @@ export function ProductsPage() {
 
         {/* New Products Alert */}
         {newProducts.length > 0 && (
-          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 md:p-5 mb-4 md:mb-6">
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-4 gap-3">
-              <div className="flex items-start gap-2 md:gap-3">
-                <AlertCircle className="w-6 h-6 text-indigo-600 mt-0.5" />
-                <div>
-                  <h3 className="text-base font-bold text-indigo-900">
-                    NEW PRODUCTS DETECTED
-                  </h3>
-                  <p className="text-sm md:text-base text-indigo-700 mt-1">
-                    {newProducts.length} products found from recent upload
-                  </p>
-                </div>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 mb-6 shadow-sm">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-lg font-bold text-blue-900">New Products Detected</h3>
+                <p className="text-sm text-blue-700 mt-1">
+                  {newProducts.length} product{newProducts.length > 1 ? 's' : ''} awaiting approval
+                </p>
               </div>
               <button 
-                className="bg-green-600 hover:bg-green-700 text-white text-sm md:text-base font-semibold px-4 md:px-5 py-2.5 rounded-lg transition-colors shadow-sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-md transition-colors shadow-sm"
                 onClick={handleApproveAll}
               >
-                Approve All
+                Approve All ({newProducts.length})
               </button>
             </div>
 
@@ -281,66 +301,44 @@ export function ProductsPage() {
               {newProducts.map((product) => (
                 <div
                   key={product.id}
-                  className="bg-white rounded-lg p-5 md:p-6 border border-gray-200 hover:border-gray-300 transition-all"
+                  className="bg-white border border-blue-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-sm transition-all"
                 >
-                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                  <div className="flex items-center justify-between gap-4">
                     {/* Product Info */}
-                    <div className="flex-1 space-y-3">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="inline-block text-sm font-medium text-indigo-700 bg-indigo-100 px-3 py-1.5 rounded">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-base font-bold text-gray-900 mb-2">{product.productName}</h4>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-gray-500">Price:</span>
+                          <span className="text-base font-bold text-blue-600">₱{product.price.toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-gray-500">Category:</span>
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-blue-100 text-xs font-semibold text-blue-700">
                             {toTitleCase(product.category)}
                           </span>
-                        </div>
-                        <h4 className="text-xl md:text-2xl font-bold text-gray-900">
-                          {product.productName}
-                        </h4>
-                      </div>
-                      
-                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-base md:text-lg">
-                        <div className="text-gray-700">
-                          <span className="font-semibold">{product.origin}</span>
-                        </div>
-                        <div className="text-gray-700">
-                          <span className="font-semibold">{product.totalMarkets}</span> <span className="text-gray-600">markets</span>
-                        </div>
-                        <div className="text-gray-700">
-                          <span className="font-semibold">{product.unit}</span>
-                        </div>
-                        <div className="text-gray-600">
-                          {formatDate(product.detectedDate)}
-                        </div>
-                        <div className="text-xl font-bold text-gray-900">
-                          {formatCurrency(product.price)}
                         </div>
                       </div>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex flex-wrap items-center gap-2 flex-shrink-0 min-w-[280px] sm:min-w-0">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <button 
-                        className="px-4 py-2.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm md:text-base font-semibold transition-colors shadow-sm"
+                        className="px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-200 rounded-md transition-colors font-medium"
                         onClick={() => setViewModal({ open: true, product: { ...product, status: ProductStatus.ACTIVE, totalDietaryTags: 0, lastUpdated: product.detectedDate } as ProductDisplayDTO, isNewProduct: true })}
                         title="View details"
                       >
                         View
                       </button>
                       <button 
-                        className="px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm md:text-base font-semibold transition-colors shadow-sm"
-                        onClick={() => setEditModal({ open: true, product: { ...product, totalDietaryTags: 0, lastUpdated: product.detectedDate } as any })}
-                        title="Edit product"
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        className="px-4 py-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm md:text-base font-semibold transition-colors shadow-sm"
+                        className="px-3 py-2 text-sm text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors font-medium shadow-sm"
                         onClick={() => handleAdd(product.id)}
                         title="Add to catalog"
                       >
                         Add
                       </button>
                       <button 
-                        className="px-4 py-2.5 rounded-lg bg-gray-500 hover:bg-gray-600 text-white text-sm md:text-base font-semibold transition-colors shadow-sm"
+                        className="px-3 py-2 text-sm text-gray-600 hover:text-gray-700 hover:bg-gray-100 border border-gray-300 rounded-md transition-colors font-medium"
                         onClick={() => handleIgnore(product.id)}
                         title="Ignore this product"
                       >
@@ -358,48 +356,48 @@ export function ProductsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
           <div className="bg-white border border-gray-200 rounded-lg p-5">
             <div className="flex items-start justify-between mb-3">
-              <span className="text-sm md:text-base font-medium text-gray-700">Total Products</span>
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Products</span>
               <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                <Package className="w-6 h-6 text-blue-600" />
+                <Package className="w-5 h-5 text-blue-600" />
               </div>
             </div>
-            <div className="text-3xl md:text-4xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900">
               {stats.totalProducts}
             </div>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-lg p-5">
             <div className="flex items-start justify-between mb-3">
-              <span className="text-sm md:text-base font-medium text-gray-700">Active Products</span>
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Active Products</span>
               <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-teal-600" />
+                <TrendingUp className="w-5 h-5 text-teal-600" />
               </div>
             </div>
-            <div className="text-3xl md:text-4xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900">
               {stats.activeProducts}
             </div>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-lg p-5">
             <div className="flex items-start justify-between mb-3">
-              <span className="text-sm md:text-base font-medium text-gray-700">Archived</span>
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Archived</span>
               <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center">
-                <Archive className="w-6 h-6 text-amber-600" />
+                <Archive className="w-5 h-5 text-amber-600" />
               </div>
             </div>
-            <div className="text-3xl md:text-4xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900">
               {stats.archivedProducts}
             </div>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-lg p-5">
             <div className="flex items-start justify-between mb-3">
-              <span className="text-sm md:text-base font-medium text-gray-700">Dietary Tags</span>
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Dietary Tags</span>
               <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-                <Leaf className="w-6 h-6 text-purple-600" />
+                <Leaf className="w-5 h-5 text-purple-600" />
               </div>
             </div>
-            <div className="text-3xl md:text-4xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900">
               {stats.totalProductDietaryTags}
             </div>
           </div>
@@ -419,16 +417,16 @@ export function ProductsPage() {
           </div>
         </div>
 
-        {/* Search and Filters - Single Row */}
+        {/* Search and Filters */}
         <div className="mb-6">
-          <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
+          <div className="flex flex-col lg:flex-row gap-3">
             {/* Search Bar */}
-            <div className="relative flex-1 min-w-0">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search products..."
-                className="w-full pl-12 pr-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 transition-all"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -436,14 +434,8 @@ export function ProductsPage() {
 
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-base font-semibold text-gray-700 flex items-center gap-2 whitespace-nowrap w-full sm:w-auto">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                </svg>
-                Filters:
-              </span>
               <select
-                className="flex-1 sm:flex-none min-w-[160px] px-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer hover:border-gray-400 transition-colors"
+                className="px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white cursor-pointer hover:border-gray-300 transition-colors"
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
               >
@@ -451,7 +443,7 @@ export function ProductsPage() {
                 {categories.map(cat => <option key={cat} value={cat}>{toTitleCase(cat)}</option>)}
               </select>
               <select
-                className="flex-1 sm:flex-none min-w-[140px] px-4 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer hover:border-gray-400 transition-colors"
+                className="px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white cursor-pointer hover:border-gray-300 transition-colors"
                 value={originFilter}
                 onChange={(e) => setOriginFilter(e.target.value)}
               >
@@ -460,52 +452,134 @@ export function ProductsPage() {
               </select>
               <button
                 onClick={resetFilters}
-                className="flex-1 sm:flex-none px-4 py-3 text-base text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-semibold rounded-lg transition-colors whitespace-nowrap"
+                className="px-3 py-2 text-sm text-gray-600 hover:text-gray-700 hover:bg-gray-50 font-medium rounded-md transition-colors border border-gray-200 flex items-center gap-1.5"
               >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
                 Reset
               </button>
+              {selectedProducts.length > 0 && (
+                <button
+                  onClick={handleBulkArchive}
+                  className="px-3 py-2 text-sm bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-md transition-colors shadow-sm flex items-center gap-1.5"
+                >
+                  <Archive className="w-3.5 h-3.5" />
+                  Archive ({selectedProducts.length})
+                </button>
+              )}
             </div>
           </div>
         </div>
 
         {/* Products Table (desktop) */}
-        <div className="hidden lg:block bg-white border border-gray-200 rounded-lg overflow-x-auto shadow-sm">
-          <div className="w-full min-w-[350px] md:min-w-0">
-            <table className="min-w-[700px] w-full text-sm md:text-base">
-              {/* ...existing code for table header and rows... */}
+        <div className="hidden lg:block bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-center py-3 px-3 md:px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                  <th className="text-left py-3 px-3 md:px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                  <th className="text-center py-3 px-3 md:px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                  <th className="text-center py-3 px-3 md:px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                  <th className="text-center py-3 px-3 md:px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="text-center py-3 px-3 md:px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="text-center py-4 px-4 w-12">
+                    <div className="flex items-center justify-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
+                        onChange={toggleAllProducts}
+                        className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded cursor-pointer focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+                      />
+                    </div>
+                  </th>
+                  <th className="text-left py-4 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
+                  <th className="text-left py-4 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Product</th>
+                  <th className="text-left py-4 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</th>
+                  <th className="text-right py-4 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Price</th>
+                  <th className="text-center py-4 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Trend</th>
+                  <th className="text-center py-4 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="text-center py-4 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-100">
                 {filteredProducts.map((product) => (
-                  <tr key={product.id} className="hover:bg-gray-50 transition-colors border-b border-gray-100">
-                    <td className="py-3 md:py-4 px-3 md:px-4 text-center">
-                      <div className="text-base text-gray-600">PR-{String(product.id).padStart(5, '0')}</div>
+                  <tr 
+                    key={product.id} 
+                    className={`hover:bg-gray-50 transition-colors ${
+                      selectedProducts.includes(product.id) ? 'bg-blue-50/50' : ''
+                    }`}
+                  >
+                    <td className="py-4 px-4">
+                      <div className="flex items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedProducts.includes(product.id)}
+                          onChange={() => toggleProductSelection(product.id)}
+                          className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded cursor-pointer focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+                        />
+                      </div>
                     </td>
-                    <td className="py-3 md:py-4 px-3 md:px-4 text-left">
-                      <div className="text-base font-medium text-gray-900">{product.productName}</div>
+                    <td className="py-4 px-4">
+                      <span className="text-base text-gray-500 font-medium">PR-{String(product.id).padStart(5, '0')}</span>
                     </td>
-                    <td className="py-3 md:py-4 px-3 md:px-4 text-center"><span className="text-base text-gray-700">{toTitleCase(product.category)}</span></td>
-                    <td className="py-3 md:py-4 px-3 md:px-4 text-center"><span className="text-base font-semibold text-gray-900">{formatCurrency(product.price)}</span></td>
-                    <td className="py-3 md:py-4 px-3 md:px-4 text-center">
-                      <span className={`text-sm px-3 py-1 rounded-md font-medium inline-block ${
-                        product.status === 'ACTIVE' ? 'bg-teal-50 text-teal-600 border border-teal-200' : 
-                        product.status === 'ARCHIVED' ? 'bg-amber-50 text-amber-600 border border-amber-200' : 
-                        'bg-rose-50 text-rose-600 border border-rose-200'
-                      }`}>{toTitleCase(product.status)}</span>
+                    <td className="py-4 px-4">
+                      <span className="text-base font-medium text-gray-900">{product.productName}</span>
                     </td>
-                    <td className="py-3 md:py-4 px-3 md:px-4">
+                    <td className="py-4 px-4">
+                      <span className="text-base text-gray-600">{toTitleCase(product.category)}</span>
+                    </td>
+                    <td className="py-4 px-4 text-right">
+                      <span className="text-base font-semibold text-gray-900">{formatCurrency(product.price)}</span>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex justify-center">
+                        {(product as any).priceTrend === 'UP' && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 rounded text-sm font-medium">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                            </svg>
+                            Falling
+                          </span>
+                        )}
+                        {(product as any).priceTrend === 'DOWN' && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 rounded text-sm font-medium">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                            </svg>
+                            Falling
+                          </span>
+                        )}
+                        {((product as any).priceTrend === 'STABLE' || !(product as any).priceTrend) && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 text-gray-600 rounded text-sm font-medium">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14" />
+                            </svg>
+                            —
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex justify-center">
+                        <span className={`inline-block px-2.5 py-1 rounded text-sm font-medium ${
+                          product.status === 'ACTIVE' ? 'bg-green-50 text-green-700' : 
+                          product.status === 'ARCHIVED' ? 'bg-gray-50 text-gray-600' : 
+                          'bg-gray-50 text-gray-600'
+                        }`}>{toTitleCase(product.status)}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4">
                       <div className="flex items-center justify-center gap-2">
-                        <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="View Details" onClick={() => setViewModal({ open: true, product })}><Eye className="w-5 h-5" /></button>
-                        <button className="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-md transition-colors" title="Edit" onClick={() => setEditModal({ open: true, product })}><Pencil className="w-5 h-5" /></button>
-                        <button className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-md transition-colors" title="Archive" onClick={() => setArchiveModal({ open: true, product })}><Archive className="w-5 h-5" /></button>
+                        <button 
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded transition-colors"
+                          onClick={() => setViewModal({ open: true, product })}
+                        >
+                          <Eye className="w-4 h-4" />
+                          <span>View</span>
+                        </button>
+                        <button 
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                          onClick={() => setEditModal({ open: true, product })}
+                        >
+                          <Pencil className="w-4 h-4" />
+                          <span>Edit</span>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -514,15 +588,32 @@ export function ProductsPage() {
             </table>
           </div>
           {filteredProducts.length === 0 && (
-            <div className="py-8 md:py-12 text-center text-gray-500">
-              <p className="text-xs md:text-sm">No products found matching "{searchTerm}"</p>
+            <div className="py-12 text-center">
+              <p className="text-sm text-gray-500">No products found matching "{searchTerm}"</p>
             </div>
           )}
           {/* Pagination Controls */}
-          <div className="flex justify-center items-center gap-3 py-5">
-            <button className="px-5 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-base font-semibold disabled:opacity-50 transition-colors" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>Prev</button>
-            <span className="text-base font-medium text-gray-700">Page {page + 1} of {totalPages}</span>
-            <button className="px-5 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-base font-semibold disabled:opacity-50 transition-colors" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>Next</button>
+          <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200">
+            <div className="text-sm text-gray-500">
+              Showing <span className="font-medium">{page * pageSize + 1}</span> to <span className="font-medium">{Math.min((page + 1) * pageSize, filteredProducts.length)}</span> of <span className="font-medium">{filteredProducts.length}</span> results
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" 
+                onClick={() => setPage((p) => Math.max(0, p - 1))} 
+                disabled={page === 0}
+              >
+                Previous
+              </button>
+              <span className="text-sm text-gray-600">Page {page + 1} of {totalPages}</span>
+              <button 
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" 
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} 
+                disabled={page >= totalPages - 1}
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
 
@@ -530,90 +621,112 @@ export function ProductsPage() {
         <div className="block lg:hidden space-y-4">
           {filteredProducts.length === 0 && (
             <div className="py-8 text-center text-gray-500">
-              <p className="text-xs">No products found matching "{searchTerm}"</p>
+              <p className="text-sm">No products found matching "{searchTerm}"</p>
             </div>
           )}
           {filteredProducts.map((product) => (
-            <div key={product.id} className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow">
-              {/* Header */}
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1">
-                  <div className="font-bold text-gray-900 text-xl leading-tight">{product.productName}</div>
-                  <div className="text-base text-gray-600 italic mt-1">{product.localName || 'N/A'}</div>
+            <div key={product.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+              {/* Header with checkbox */}
+              <div className="flex items-start gap-3 mb-3">
+                <input
+                  type="checkbox"
+                  checked={selectedProducts.includes(product.id)}
+                  onChange={() => toggleProductSelection(product.id)}
+                  className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded cursor-pointer focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 mt-1"
+                />
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-base font-bold text-gray-900 mb-1">{product.productName}</h4>
+                  <p className="text-sm text-gray-500">PR-{String(product.id).padStart(5, '0')}</p>
                 </div>
-                <span className={`text-sm px-3 py-1.5 rounded-full font-bold whitespace-nowrap ${
-                  product.status === 'ACTIVE' ? 'bg-teal-100 text-teal-800' : 
-                  product.status === 'ARCHIVED' ? 'bg-amber-100 text-amber-800' : 
-                  'bg-rose-100 text-rose-800'
+                <span className={`text-xs px-2.5 py-1 rounded font-semibold whitespace-nowrap ${
+                  product.status === 'ACTIVE' ? 'bg-green-50 text-green-700' : 
+                  product.status === 'ARCHIVED' ? 'bg-gray-50 text-gray-600' : 
+                  'bg-gray-50 text-gray-600'
                 }`}>{toTitleCase(product.status)}</span>
               </div>
 
-              {/* Category & Origin */}
-              <div className="flex items-center gap-2 text-base text-gray-700">
-                <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
-                <span className="font-medium">{toTitleCase(product.category)}</span>
-              </div>
-              <div className="flex items-center gap-2 text-base text-gray-700">
-                <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                <span className="font-medium">{product.origin}</span>
-              </div>
-              <div className="flex items-center gap-2 text-base text-gray-700">
-                <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>
-                <span className="font-medium">{product.unit}</span>
-              </div>
-
-              {/* Markets & Dietary Tags */}
-              <div className="flex flex-col gap-3 mt-1">
-                <button className="flex items-center text-base text-teal-800 bg-teal-50 hover:bg-teal-100 rounded-lg px-4 py-3 font-semibold gap-2 transition-colors w-full">
-                  <span className="w-2.5 h-2.5 bg-teal-600 rounded-full"></span>
-                  <span className="flex-1 text-left">{product.totalMarkets} Markets Available</span>
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-                <button className="flex items-center text-base text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg px-4 py-3 font-semibold gap-2 transition-colors w-full">
-                  <span className="w-2.5 h-2.5 bg-gray-500 rounded-full"></span>
-                  <span className="flex-1 text-left">{product.totalDietaryTags} Dietary Tags</span>
-                  <ChevronRight className="w-5 h-5 text-gray-500" />
-                </button>
+              {/* Key Info */}
+              <div className="grid grid-cols-2 gap-3 py-3 border-t border-b border-gray-100">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Category</p>
+                  <p className="text-sm font-medium text-gray-900">{toTitleCase(product.category)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Origin</p>
+                  <p className="text-sm font-medium text-gray-900">{product.origin}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Price</p>
+                  <p className="text-base font-bold text-gray-900">{formatCurrency(product.price)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Unit</p>
+                  <p className="text-sm font-medium text-gray-900">{product.unit}</p>
+                </div>
               </div>
 
-              {/* Price */}
-              <div className="mt-2">
-                <div className="text-3xl font-bold text-gray-900">{formatCurrency(product.price)}</div>
-                <div className="text-base text-gray-600 mt-1">per {product.unit}</div>
+              {/* Additional Info */}
+              <div className="flex items-center justify-between py-2">
+                <div className="flex items-center gap-4">
+                  <div className="text-sm text-gray-600">
+                    <span className="font-semibold text-gray-900">{product.totalMarkets}</span> markets
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    <span className="font-semibold text-gray-900">{product.totalDietaryTags}</span> tags
+                  </div>
+                </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center gap-3 mt-2 pt-4 border-t border-gray-200">
-                <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-teal-300 bg-teal-50 text-teal-700 text-base font-semibold hover:bg-teal-100 hover:border-teal-400 transition-all" title="Edit" onClick={() => setEditModal({ open: true, product })}>
-                  <Pencil className="w-5 h-5" />
-                  <span>Edit</span>
+              <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
+                <button 
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded transition-colors font-medium"
+                  onClick={() => setViewModal({ open: true, product })}
+                >
+                  <Eye className="w-4 h-4" />
+                  <span>View</span>
                 </button>
-                <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 border-amber-300 bg-amber-50 text-amber-700 text-base font-semibold hover:bg-amber-100 hover:border-amber-400 transition-all" title="Archive" onClick={() => setArchiveModal({ open: true, product })}>
-                  <Archive className="w-5 h-5" />
-                  <span>Archive</span>
+                <button 
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors font-medium"
+                  onClick={() => setEditModal({ open: true, product })}
+                >
+                  <Pencil className="w-4 h-4" />
+                  <span>Edit</span>
                 </button>
               </div>
             </div>
           ))}
           {/* Pagination Controls (mobile) */}
           {filteredProducts.length > 0 && (
-            <div className="flex justify-center items-center gap-3 py-5">
-              <button className="px-5 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-base font-semibold disabled:opacity-50 transition-colors" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>Prev</button>
-              <span className="text-base font-medium text-gray-700">Page {page + 1} of {totalPages}</span>
-              <button className="px-5 py-3 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 text-base font-semibold disabled:opacity-50 transition-colors" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>Next</button>
+            <div className="flex justify-between items-center py-4">
+              <button 
+                className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium" 
+                onClick={() => setPage((p) => Math.max(0, p - 1))} 
+                disabled={page === 0}
+              >
+                Previous
+              </button>
+              <span className="text-sm font-medium text-gray-700">Page {page + 1} of {totalPages}</span>
+              <button 
+                className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium" 
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} 
+                disabled={page >= totalPages - 1}
+              >
+                Next
+              </button>
             </div>
           )}
         </div>
       </div>
-    {/* Archive Modal */}
-    {archiveModal.open && archiveModal.product && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-3 md:p-4">
-        <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-4 md:p-6 animate-fadeIn max-h-[90vh] overflow-y-auto">
+    {/* Bulk Archive Modal */}
+    {bulkArchiveModal.open && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-5 animate-fadeIn">
           {/* Header */}
-          <div className="flex items-center justify-between mb-3 md:mb-4">
-            <h2 className="text-lg md:text-xl font-bold text-gray-900">Archive Product</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-gray-900">Archive Selected Products</h2>
             <button
-              onClick={() => setArchiveModal({ open: false })}
+              onClick={() => setBulkArchiveModal({ open: false, count: 0 })}
               className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -623,21 +736,28 @@ export function ProductsPage() {
           </div>
 
           {/* Content */}
-          <div className="space-y-3 md:space-y-4">
-            <p className="text-sm md:text-base text-gray-900">
-              Are you sure you want to archive <span className="font-bold">{archiveModal.product.productName}</span>?
-            </p>
-            <p className="text-xs md:text-sm text-gray-600">
-              This product is currently active in <span className="font-semibold">{archiveModal.product.totalMarkets} markets</span>.
-            </p>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-md">
+              <div className="flex-shrink-0">
+                <Archive className="w-8 h-8 text-orange-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm md:text-base font-semibold text-orange-900">
+                  You are about to archive {bulkArchiveModal.count} product{bulkArchiveModal.count > 1 ? 's' : ''}
+                </p>
+                <p className="text-xs md:text-sm text-orange-700 mt-1">
+                  This action will affect multiple products at once.
+                </p>
+              </div>
+            </div>
 
             {/* Warning Box */}
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 md:p-4">
-              <p className="text-xs md:text-sm font-semibold text-amber-900 mb-2 md:mb-3">What happens when you archive:</p>
-              <ul className="space-y-1.5 md:space-y-2 text-xs md:text-sm text-amber-800">
+            <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
+              <p className="text-xs font-semibold text-amber-900 mb-2">What happens when you archive:</p>
+              <ul className="space-y-1.5 text-xs text-amber-800">
                 <li className="flex items-start gap-2">
                   <span className="text-amber-600 mt-0.5">•</span>
-                  <span>Product will be hidden from active lists</span>
+                  <span>Products will be hidden from active lists</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-amber-600 mt-0.5">•</span>
@@ -649,25 +769,30 @@ export function ProductsPage() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-amber-600 mt-0.5">•</span>
-                  <span>You can restore it later if needed</span>
+                  <span>You can restore them later if needed</span>
                 </li>
               </ul>
             </div>
+
+            <p className="text-xs text-gray-600">
+              Please confirm that you want to proceed with archiving these products.
+            </p>
           </div>
 
           {/* Actions */}
-          <div className="flex gap-2 md:gap-3 mt-4 md:mt-6">
+          <div className="flex gap-2 mt-5">
             <button
-              className="flex-1 px-4 md:px-5 py-2 md:py-2.5 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm md:text-base font-medium hover:bg-gray-50 transition-colors"
-              onClick={() => setArchiveModal({ open: false })}
+              className="flex-1 px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+              onClick={() => setBulkArchiveModal({ open: false, count: 0 })}
             >
               Cancel
             </button>
             <button
-              className="flex-1 px-4 md:px-5 py-2 md:py-2.5 rounded-lg bg-rose-600 text-white text-sm md:text-base font-medium hover:bg-rose-700 transition-colors"
-              onClick={() => handleArchive(archiveModal.product!.id)}
+              className="flex-1 px-4 py-2 rounded-md bg-orange-600 text-white text-sm font-medium hover:bg-orange-700 transition-colors flex items-center justify-center gap-1.5"
+              onClick={confirmBulkArchive}
             >
-              Archive
+              <Archive className="w-4 h-4" />
+              Archive {bulkArchiveModal.count} Product{bulkArchiveModal.count > 1 ? 's' : ''}
             </button>
           </div>
         </div>
@@ -676,11 +801,11 @@ export function ProductsPage() {
 
     {/* Edit Modal */}
     {editModal.open && editModal.product && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-3 md:p-4">
-        <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-4 md:p-6 animate-fadeIn max-h-[90vh] overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-5 animate-fadeIn max-h-[90vh] overflow-y-auto">
           {/* Header */}
-          <div className="flex items-center justify-between mb-4 md:mb-6">
-            <h2 className="text-lg md:text-xl font-bold text-gray-900">Edit Product</h2>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-base font-semibold text-gray-900">Edit Product</h2>
             <button
               onClick={() => setEditModal({ open: false })}
               className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
@@ -692,7 +817,7 @@ export function ProductsPage() {
           </div>
 
           {/* Form */}
-          <form className="space-y-3 md:space-y-5" onSubmit={async (e) => {
+          <form className="space-y-4" onSubmit={async (e) => {
             e.preventDefault();
             const formData = new FormData(e.currentTarget);
             
@@ -850,17 +975,17 @@ export function ProductsPage() {
             )}
 
             {/* Actions */}
-            <div className="flex gap-2 md:gap-3 mt-4 md:mt-6 pt-3 md:pt-4 border-t border-gray-200">
+            <div className="flex gap-2 mt-5 pt-4 border-t border-gray-200">
               <button
                 type="button"
-                className="flex-1 px-4 md:px-5 py-2.5 md:py-3 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm md:text-base font-medium hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
                 onClick={() => setEditModal({ open: false })}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 md:px-5 py-2.5 md:py-3 rounded-lg bg-green-600 text-white text-sm md:text-base font-medium hover:bg-green-700 transition-colors"
+                className="flex-1 px-4 py-2 rounded-md bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors"
               >
                 Save Changes
               </button>
@@ -872,11 +997,11 @@ export function ProductsPage() {
 
     {/* View Modal */}
     {viewModal.open && viewModal.product && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-3 md:p-4">
-        <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-4 md:p-6 animate-fadeIn max-h-[90vh] overflow-y-auto">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-5 animate-fadeIn max-h-[90vh] overflow-y-auto">
           {/* Header */}
-          <div className="flex items-center justify-between mb-4 md:mb-6">
-            <h2 className="text-lg md:text-xl font-bold text-gray-900">Product Details</h2>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-base font-semibold text-gray-900">Product Details</h2>
             <button
               onClick={() => setViewModal({ open: false })}
               className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
@@ -888,94 +1013,133 @@ export function ProductsPage() {
           </div>
 
           {/* Content */}
-          <div className="space-y-3 md:space-y-5">
+          <div className="space-y-4">
             {/* Row 1: ID & Status */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Product ID</label>
-                <div className="text-base md:text-lg font-semibold text-gray-900">PR-{String(viewModal.product.id).padStart(5, '0')}</div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Product ID</label>
+                <div className="text-sm font-semibold text-gray-900">PR-{String(viewModal.product.id).padStart(5, '0')}</div>
               </div>
               <div>
-                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Status</label>
-                <span className={`inline-block text-xs md:text-sm px-3 py-1.5 rounded-full font-bold ${
-                  viewModal.product.status === 'ACTIVE' ? 'bg-teal-100 text-teal-700' : 
-                  viewModal.product.status === 'ARCHIVED' ? 'bg-amber-100 text-amber-700' : 
-                  'bg-rose-100 text-rose-700'
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Status</label>
+                <span className={`inline-block text-xs px-2.5 py-1 rounded-full font-semibold ${
+                  viewModal.product.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 
+                  viewModal.product.status === 'ARCHIVED' ? 'bg-orange-100 text-orange-700' : 
+                  'bg-slate-100 text-slate-700'
                 }`}>{toTitleCase(viewModal.product.status)}</span>
               </div>
             </div>
 
             {/* Row 2: Product Name & Local Name */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Product Name</label>
-                <div className="text-base md:text-lg font-semibold text-gray-900">{viewModal.product.productName}</div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Product Name</label>
+                <div className="text-sm font-semibold text-gray-900">{viewModal.product.productName}</div>
               </div>
               <div>
-                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Local Name</label>
-                <div className="text-base md:text-lg text-gray-700">{viewModal.product.localName || <span className="italic text-gray-400">N/A</span>}</div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Local Name</label>
+                <div className="text-sm text-gray-700">{viewModal.product.localName || <span className="italic text-gray-400">N/A</span>}</div>
               </div>
             </div>
 
             {/* Row 3: Category & Origin */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Category</label>
-                <div className="text-base md:text-lg text-gray-700">{toTitleCase(viewModal.product.category)}</div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Category</label>
+                <div className="text-sm text-gray-700">{toTitleCase(viewModal.product.category)}</div>
               </div>
               <div>
-                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Origin</label>
-                <div className="text-base md:text-lg text-gray-700">{viewModal.product.origin}</div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Origin</label>
+                <div className="text-sm text-gray-700">{viewModal.product.origin}</div>
               </div>
             </div>
 
             {/* Row 4: Price & Unit */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Price</label>
-                <div className="text-xl md:text-2xl font-bold text-gray-900">{formatCurrency(viewModal.product.price)}</div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Price</label>
+                <div className="text-xl font-bold text-gray-900">{formatCurrency(viewModal.product.price)}</div>
               </div>
               <div>
-                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Unit</label>
-                <div className="text-base md:text-lg text-gray-700">{viewModal.product.unit}</div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Unit</label>
+                <div className="text-sm text-gray-700">{viewModal.product.unit}</div>
+              </div>
+            </div>
+
+            {/* Row 4.5: Price Trend & Previous Price */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Price Trend</label>
+                <div>
+                  {(viewModal.product as any).priceTrend === 'UP' && (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-50 text-rose-600 rounded-md border border-rose-100">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                      </svg>
+                      <span className="text-xs font-semibold">Trending Up</span>
+                    </div>
+                  )}
+                  {(viewModal.product as any).priceTrend === 'DOWN' && (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 text-emerald-600 rounded-md border border-emerald-100">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                      </svg>
+                      <span className="text-xs font-semibold">Trending Down</span>
+                    </div>
+                  )}
+                  {((viewModal.product as any).priceTrend === 'STABLE' || !(viewModal.product as any).priceTrend) && (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 text-slate-600 rounded-md border border-slate-100">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14" />
+                      </svg>
+                      <span className="text-xs font-semibold">Stable</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Previous Price</label>
+                <div className="text-sm text-gray-700">
+                  {(viewModal.product as any).previousPrice ? formatCurrency((viewModal.product as any).previousPrice) : <span className="italic text-gray-400">N/A</span>}
+                </div>
               </div>
             </div>
 
             {/* Row 5: Markets & Dietary Tags */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Markets Available</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Markets Available</label>
                 <div className="flex items-center gap-2">
-                  <span className="text-xl md:text-2xl font-bold text-teal-600">{viewModal.product.totalMarkets}</span>
-                  <span className="text-base text-gray-600">markets</span>
+                  <span className="text-lg font-bold text-teal-600">{viewModal.product.totalMarkets}</span>
+                  <span className="text-sm text-gray-600">markets</span>
                 </div>
               </div>
               <div>
-                <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Dietary Tags</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Dietary Tags</label>
                 <div className="flex items-center gap-2">
-                  <span className="text-xl md:text-2xl font-bold text-purple-600">{viewModal.product.totalDietaryTags}</span>
-                  <span className="text-base text-gray-600">tags</span>
+                  <span className="text-lg font-bold text-purple-600">{viewModal.product.totalDietaryTags}</span>
+                  <span className="text-sm text-gray-600">tags</span>
                 </div>
               </div>
             </div>
 
             {/* Row 6: Last Updated */}
             <div>
-              <label className="block text-xs md:text-sm font-medium text-gray-500 mb-1.5 md:mb-2">Last Updated</label>
-              <div className="text-base md:text-lg text-gray-700">{formatDate(viewModal.product.lastUpdated)}</div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">Last Updated</label>
+              <div className="text-sm text-gray-700">{formatDate(viewModal.product.lastUpdated)}</div>
             </div>
           </div>
 
           {/* Actions */}
-          <div className="flex gap-2 md:gap-3 mt-4 md:mt-6 pt-3 md:pt-4 border-t border-gray-200">
+          <div className="flex gap-2 mt-5 pt-4 border-t border-gray-200">
             <button
-              className="flex-1 px-4 md:px-5 py-2.5 md:py-3 rounded-lg bg-gray-100 text-gray-700 text-sm md:text-base font-medium hover:bg-gray-200 transition-colors"
+              className="flex-1 px-4 py-2 rounded-md bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors"
               onClick={() => setViewModal({ open: false })}
             >
               Close
             </button>
             <button
-              className="flex-1 px-4 md:px-5 py-2.5 md:py-3 rounded-lg bg-teal-600 text-white text-sm md:text-base font-medium hover:bg-teal-700 transition-colors"
+              className="flex-1 px-4 py-2 rounded-md bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors"
               onClick={() => { 
                 setViewModal({ open: false }); 
                 if (viewModal.isNewProduct) {
