@@ -40,6 +40,21 @@ export interface MarketComparisonData {
   isTargetMarket: boolean
 }
 
+export interface PriceMovement {
+  productName: string
+  currentPrice: number
+  oldPrice: number
+  percentageChange: number
+  trend: 'UP' | 'DOWN'
+}
+
+export interface MarketMovementsData {
+  topGainers: PriceMovement[]
+  topDecliners: PriceMovement[]
+  allGainersCount: number
+  allDeclinersCount: number
+}
+
 /**
  * Fetch markets and products for dropdowns
  */
@@ -89,6 +104,27 @@ export async function fetchMarketComparison(
   const response = await fetch(`${API_BASE_URL}/analytics/market-comparison?${params}`)
   if (!response.ok) {
     throw new Error('Failed to fetch market comparison data')
+  }
+  return response.json()
+}
+
+/**
+ * Fetch market price movements (top gainers and decliners)
+ */
+export async function fetchMarketMovements(
+  productName: string,
+  marketId: number,
+  days: number
+): Promise<MarketMovementsData> {
+  const params = new URLSearchParams({
+    productName,
+    marketId: marketId.toString(),
+    days: days.toString()
+  })
+  
+  const response = await fetch(`${API_BASE_URL}/analytics/market-movements?${params}`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch market movements data')
   }
   return response.json()
 }

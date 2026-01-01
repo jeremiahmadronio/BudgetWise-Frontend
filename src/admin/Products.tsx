@@ -272,16 +272,16 @@ export function ProductsPage() {
     <div className="min-h-screen bg-gray-50  ">
       <div className="max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 pt-2 md:pt-4 pb-4 md:pb-8">
         {/* Header */}
-        <div className="mb-6 md:mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Product Catalog</h1>
-          <p className="text-sm md:text-base text-gray-600 mt-2">
+        <div className="mb-5 md:mb-6">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Product Catalog</h1>
+          <p className="text-xs md:text-sm text-gray-600 mt-1">
             Monitor prices, manage inventory, and track product availability across markets
           </p>
         </div>
 
         {/* New Products Alert */}
         {newProducts.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 mb-6 shadow-sm">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-6 shadow-md">
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h3 className="text-lg font-bold text-blue-900">New Products Detected</h3>
@@ -353,64 +353,64 @@ export function ProductsPage() {
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
-          <div className="bg-white border border-gray-200 rounded-lg p-5">
-            <div className="flex items-start justify-between mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+          <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
+            <div className="flex items-start justify-between mb-2">
               <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Products</span>
-              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                <Package className="w-5 h-5 text-blue-600" />
+              <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                <Package className="w-4 h-4 text-blue-600" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-xl font-bold text-gray-900">
               {stats.totalProducts}
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg p-5">
-            <div className="flex items-start justify-between mb-3">
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Active Products</span>
-              <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-teal-600" />
+          <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
+            <div className="flex items-start justify-between mb-2">
+              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Active Products</span>
+              <div className="w-8 h-8 bg-teal-50 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-teal-600" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-xl font-bold text-gray-900">
               {stats.activeProducts}
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg p-5">
-            <div className="flex items-start justify-between mb-3">
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Archived</span>
-              <div className="w-10 h-10 bg-amber-50 rounded-lg flex items-center justify-center">
-                <Archive className="w-5 h-5 text-amber-600" />
+          <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
+            <div className="flex items-start justify-between mb-2">
+              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Archived</span>
+              <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center">
+                <Archive className="w-4 h-4 text-amber-600" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-xl font-bold text-gray-900">
               {stats.archivedProducts}
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg p-5">
-            <div className="flex items-start justify-between mb-3">
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Dietary Tags</span>
-              <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-                <Leaf className="w-5 h-5 text-purple-600" />
+          <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
+            <div className="flex items-start justify-between mb-2">
+              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Dietary Tags</span>
+              <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
+                <Leaf className="w-4 h-4 text-purple-600" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-xl font-bold text-gray-900">
               {stats.totalProductDietaryTags}
             </div>
           </div>
         </div>
 
         {/* Info Banner */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 md:p-5 mb-4 md:mb-6 flex flex-col md:flex-row gap-2 md:gap-3">
-          <Info className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 md:p-4 mb-4 flex flex-col md:flex-row gap-2 shadow-sm">
+          <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
           <div>
-            <h4 className="text-base font-bold text-blue-900 mb-1">
+            <h4 className="text-sm font-semibold text-blue-900 mb-0.5">
               Quick Tip: Product Management
             </h4>
-            <p className="text-sm md:text-base text-blue-700">
+            <p className="text-xs md:text-sm text-blue-700">
               Click on market counts to view detailed coverage. Use search to
               quickly find products by name, category, or local name.
             </p>
@@ -473,28 +473,27 @@ export function ProductsPage() {
         </div>
 
         {/* Products Table (desktop) */}
-        <div className="hidden lg:block bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+        <div className="hidden lg:block bg-white border border-gray-200 rounded-xl overflow-hidden shadow-md">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-center py-4 px-4 w-12">
+                  <th className="text-center py-2.5 px-3 w-12">
                     <div className="flex items-center justify-center">
                       <input
                         type="checkbox"
                         checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
                         onChange={toggleAllProducts}
-                        className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded cursor-pointer focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+                        className="w-3.5 h-3.5 text-blue-600 bg-white border-gray-300 rounded cursor-pointer focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
                       />
                     </div>
                   </th>
-                  <th className="text-left py-4 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
-                  <th className="text-left py-4 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Product</th>
-                  <th className="text-left py-4 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Category</th>
-                  <th className="text-right py-4 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Price</th>
-                  <th className="text-center py-4 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Trend</th>
-                  <th className="text-center py-4 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="text-center py-4 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="text-left py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                  <th className="text-left py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                  <th className="text-left py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                  <th className="text-center py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="text-center py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -505,55 +504,27 @@ export function ProductsPage() {
                       selectedProducts.includes(product.id) ? 'bg-blue-50/50' : ''
                     }`}
                   >
-                    <td className="py-4 px-4">
+                    <td className="py-2.5 px-3">
                       <div className="flex items-center justify-center">
                         <input
                           type="checkbox"
                           checked={selectedProducts.includes(product.id)}
                           onChange={() => toggleProductSelection(product.id)}
-                          className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded cursor-pointer focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+                          className="w-3.5 h-3.5 text-blue-600 bg-white border-gray-300 rounded cursor-pointer focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
                         />
                       </div>
                     </td>
-                    <td className="py-4 px-4">
-                      <span className="text-base text-gray-500 font-medium">PR-{String(product.id).padStart(5, '0')}</span>
+                    <td className="py-2.5 px-3">
+                      <span className="text-sm text-gray-500 font-medium">PR-{String(product.id).padStart(5, '0')}</span>
                     </td>
-                    <td className="py-4 px-4">
-                      <span className="text-base font-medium text-gray-900">{product.productName}</span>
+                    <td className="py-2.5 px-3">
+                      <span className="text-sm font-medium text-gray-900">{product.productName}</span>
                     </td>
-                    <td className="py-4 px-4">
-                      <span className="text-base text-gray-600">{toTitleCase(product.category)}</span>
+                    <td className="py-2.5 px-3">
+                      <span className="text-sm text-gray-600">{toTitleCase(product.category)}</span>
                     </td>
-                    <td className="py-4 px-4 text-right">
-                      <span className="text-base font-semibold text-gray-900">{formatCurrency(product.price)}</span>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex justify-center">
-                        {(product as any).priceTrend === 'UP' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 rounded text-sm font-medium">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                            </svg>
-                            Falling
-                          </span>
-                        )}
-                        {(product as any).priceTrend === 'DOWN' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 text-red-600 rounded text-sm font-medium">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-                            </svg>
-                            Falling
-                          </span>
-                        )}
-                        {((product as any).priceTrend === 'STABLE' || !(product as any).priceTrend) && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 text-gray-600 rounded text-sm font-medium">
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14" />
-                            </svg>
-                            —
-                          </span>
-                        )}
-                      </div>
+                    <td className="py-2.5 px-3 text-right">
+                      <span className="text-sm font-semibold text-gray-900">{formatCurrency(product.price)}</span>
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex justify-center">
@@ -593,13 +564,13 @@ export function ProductsPage() {
             </div>
           )}
           {/* Pagination Controls */}
-          <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200">
-            <div className="text-sm text-gray-500">
+          <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200">
+            <div className="text-xs text-gray-500">
               Showing <span className="font-medium">{page * pageSize + 1}</span> to <span className="font-medium">{Math.min((page + 1) * pageSize, filteredProducts.length)}</span> of <span className="font-medium">{filteredProducts.length}</span> results
             </div>
             <div className="flex items-center gap-2">
               <button 
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" 
+                className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" 
                 onClick={() => setPage((p) => Math.max(0, p - 1))} 
                 disabled={page === 0}
               >
@@ -802,7 +773,7 @@ export function ProductsPage() {
     {/* Edit Modal */}
     {editModal.open && editModal.product && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
-        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-5 animate-fadeIn max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-lg shadow-xl max-w-xl w-full p-5 animate-fadeIn max-h-[90vh] overflow-y-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-base font-semibold text-gray-900">Edit Product</h2>
@@ -998,7 +969,7 @@ export function ProductsPage() {
     {/* View Modal */}
     {viewModal.open && viewModal.product && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
-        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-5 animate-fadeIn max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-lg shadow-xl max-w-xl w-full p-5 animate-fadeIn max-h-[90vh] overflow-y-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-base font-semibold text-gray-900">Product Details</h2>
@@ -1066,41 +1037,12 @@ export function ProductsPage() {
               </div>
             </div>
 
-            {/* Row 4.5: Price Trend & Previous Price */}
+            {/* Row 4.5: Previous Price */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">Price Trend</label>
-                <div>
-                  {(viewModal.product as any).priceTrend === 'UP' && (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-50 text-rose-600 rounded-md border border-rose-100">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                      </svg>
-                      <span className="text-xs font-semibold">Trending Up</span>
-                    </div>
-                  )}
-                  {(viewModal.product as any).priceTrend === 'DOWN' && (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 text-emerald-600 rounded-md border border-emerald-100">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-                      </svg>
-                      <span className="text-xs font-semibold">Trending Down</span>
-                    </div>
-                  )}
-                  {((viewModal.product as any).priceTrend === 'STABLE' || !(viewModal.product as any).priceTrend) && (
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 text-slate-600 rounded-md border border-slate-100">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14" />
-                      </svg>
-                      <span className="text-xs font-semibold">Stable</span>
-                    </div>
-                  )}
-                </div>
-              </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">Previous Price</label>
                 <div className="text-sm text-gray-700">
-                  {(viewModal.product as any).previousPrice ? formatCurrency((viewModal.product as any).previousPrice) : <span className="italic text-gray-400">N/A</span>}
+                  {viewModal.product.previousPrice ? formatCurrency(viewModal.product.previousPrice) : <span className="italic text-gray-400">N/A</span>}
                 </div>
               </div>
             </div>

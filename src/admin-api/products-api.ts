@@ -19,6 +19,7 @@
     unit: string;
     status: 'ACTIVE' | 'ARCHIVED' | 'DEACTIVATED';
     price: number;
+    previousPrice: number;
     totalMarkets: number;
     totalDietaryTags: number;
     lastUpdated: string;

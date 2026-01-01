@@ -4,9 +4,10 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { 
   fetchDiscoveryData, 
   fetchProductAnalytics,
-  fetchMarketComparison
+  fetchMarketComparison,
+  fetchMarketMovements
 } from '../admin-api/analytics-api'
-import type { Market, Product, AnalyticsData, MarketComparisonData } from '../admin-api/analytics-api'
+import type { Market, Product, AnalyticsData, MarketComparisonData, MarketMovementsData } from '../admin-api/analytics-api'
 
 export function Analytics() {
   // State for dropdowns data
@@ -25,10 +26,13 @@ export function Analytics() {
   // State for analytics data
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
   const [marketComparisonData, setMarketComparisonData] = useState<MarketComparisonData[]>([])
+  const [marketMovementsData, setMarketMovementsData] = useState<MarketMovementsData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [comparisonLoading, setComparisonLoading] = useState(false)
   const [comparisonError, setComparisonError] = useState<string | null>(null)
+  const [movementsLoading, setMovementsLoading] = useState(false)
+  const [movementsError, setMovementsError] = useState<string | null>(null)
   const [appliedDays, setAppliedDays] = useState<number>(30)
 
   // Fetch markets and products on mount, set default filter
@@ -60,24 +64,30 @@ export function Analytics() {
   const fetchDefaultData = async (productName: string, marketId: number, days: number) => {
     setLoading(true)
     setComparisonLoading(true)
+    setMovementsLoading(true)
     setError(null)
     setComparisonError(null)
+    setMovementsError(null)
     
     try {
-      const [analyticsResult, comparisonResult] = await Promise.all([
+      const [analyticsResult, comparisonResult, movementsResult] = await Promise.all([
         fetchProductAnalytics(productName, marketId, days),
-        fetchMarketComparison(productName, marketId, days)
+        fetchMarketComparison(productName, marketId, days),
+        fetchMarketMovements(productName, marketId, days)
       ])
       setAnalyticsData(analyticsResult)
       setMarketComparisonData(comparisonResult)
+      setMarketMovementsData(movementsResult)
       setAppliedDays(days)
     } catch (err) {
       console.error('Failed to load default data:', err)
       setError('Failed to load analytics data')
       setComparisonError('Failed to load market comparison data')
+      setMovementsError('Failed to load market movements data')
     } finally {
       setLoading(false)
       setComparisonLoading(false)
+      setMovementsLoading(false)
     }
   }
 
@@ -90,11 +100,13 @@ export function Analytics() {
 
     setLoading(true)
     setComparisonLoading(true)
+    setMovementsLoading(true)
     setError(null)
     setComparisonError(null)
+    setMovementsError(null)
     
     try {
-      const [analyticsResult, comparisonResult] = await Promise.all([
+      const [analyticsResult, comparisonResult, movementsResult] = await Promise.all([
         fetchProductAnalytics(
           selectedProduct.productName,
           selectedMarket,
@@ -104,20 +116,29 @@ export function Analytics() {
           selectedProduct.productName,
           selectedMarket,
           selectedDays
+        ),
+        fetchMarketMovements(
+          selectedProduct.productName,
+          selectedMarket,
+          selectedDays
         )
       ])
       setAnalyticsData(analyticsResult)
       setMarketComparisonData(comparisonResult)
+      setMarketMovementsData(movementsResult)
       setAppliedDays(selectedDays)
     } catch (err) {
       console.error('Failed to load analytics:', err)
       setError('Failed to load analytics data. Please try again.')
       setComparisonError('Failed to load market comparison data.')
+      setMovementsError('Failed to load market movements data.')
       setAnalyticsData(null)
       setMarketComparisonData([])
+      setMarketMovementsData(null)
     } finally {
       setLoading(false)
       setComparisonLoading(false)
+      setMovementsLoading(false)
     }
   }
 
@@ -387,6 +408,10 @@ export function Analytics() {
                       tickLine={false}
                       axisLine={{ stroke: '#d1d5db' }}
                       width={65}
+                      domain={[
+                        (dataMin: number) => appliedDays === 7 ? Math.floor(dataMin * 0.98) : Math.floor(dataMin * 0.95),
+                        (dataMax: number) => appliedDays === 7 ? Math.ceil(dataMax * 1.02) : Math.ceil(dataMax * 1.05)
+                      ]}
                     />
                     <Tooltip 
                       contentStyle={{
@@ -457,6 +482,10 @@ export function Analytics() {
                       axisLine={{ stroke: '#d1d5db' }}
                       width={50}
                       tick={{ fontSize: 10 }}
+                      domain={[
+                        (dataMin: number) => appliedDays === 7 ? Math.floor(dataMin * 0.98) : Math.floor(dataMin * 0.95),
+                        (dataMax: number) => appliedDays === 7 ? Math.ceil(dataMax * 1.02) : Math.ceil(dataMax * 1.05)
+                      ]}
                     />
                     <Tooltip 
                       contentStyle={{
@@ -653,6 +682,171 @@ export function Analytics() {
                   <span className="text-sm text-gray-700">Compared Markets</span>
                 </div>
               </div>
+            </>
+          )}
+        </div>
+
+        {/* Market Price Movements */}
+        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-md mt-5">
+          {movementsLoading && (
+            <div className="flex flex-col items-center justify-center py-16 md:py-24">
+              <div className="animate-spin rounded-full h-12 w-12 md:h-14 md:w-14 border-b-3 md:border-b-4 border-blue-600 mb-3 md:mb-4"></div>
+              <p className="text-sm md:text-base font-bold text-gray-900 mb-1">Loading Price Movements...</p>
+              <p className="text-xs md:text-sm text-gray-500">Please wait while we fetch the data</p>
+            </div>
+          )}
+
+          {movementsError && !movementsLoading && (
+            <div className="flex flex-col items-center justify-center py-16 md:py-24">
+              <div className="w-12 h-12 md:w-14 md:h-14 bg-red-50 rounded-full flex items-center justify-center mb-3 md:mb-4 shadow-sm">
+                <svg className="w-6 h-6 md:w-7 md:h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <p className="text-sm md:text-base font-bold text-gray-900 mb-1">Failed to Load</p>
+              <p className="text-xs md:text-sm text-gray-600">{movementsError}</p>
+            </div>
+          )}
+
+          {!movementsLoading && !movementsError && !marketMovementsData && (
+            <div className="flex flex-col items-center justify-center py-16 md:py-24">
+              <div className="w-12 h-12 md:w-14 md:h-14 bg-blue-50 rounded-full flex items-center justify-center mb-3 md:mb-4 shadow-sm">
+                <svg className="w-6 h-6 md:w-7 md:h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              </div>
+              <p className="text-sm md:text-base font-bold text-gray-900 mb-1">No Movement Data</p>
+              <p className="text-xs md:text-sm text-gray-600 text-center px-4">Select filters and click "Apply Filter" to view price movements</p>
+            </div>
+          )}
+
+          {marketMovementsData && !movementsLoading && !movementsError && (
+            <>
+              <div className="mb-4 md:mb-6">
+                <h3 className="text-base md:text-lg font-bold text-gray-900">Market Price Movements</h3>
+                <p className="text-xs md:text-sm text-gray-500 mt-1">
+                  Top gainers and decliners • Last {appliedDays} days
+                </p>
+              </div>
+
+              {/* Combine and prepare data for diverging bar chart */}
+              {(() => {
+                const allMovements = [
+                  ...marketMovementsData.topGainers.slice(0, 5),
+                  ...marketMovementsData.topDecliners.slice(0, 5)
+                ].sort((a, b) => b.percentageChange - a.percentageChange)
+
+                return (
+                  <>
+                    {/* Desktop Chart */}
+                    <div className="hidden md:block">
+                      <ResponsiveContainer width="100%" height={Math.max(400, allMovements.length * 40)}>
+                        <BarChart 
+                          data={allMovements}
+                          layout="vertical"
+                          margin={{ top: 20, right: 40, left: 180, bottom: 20 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis 
+                            type="number"
+                            stroke="#6b7280"
+                            style={{ fontSize: '12px' }}
+                            tickFormatter={(value) => `${value}%`}
+                          />
+                          <YAxis 
+                            type="category"
+                            dataKey="productName"
+                            stroke="#374151"
+                            style={{ fontSize: '12px' }}
+                            width={170}
+                          />
+                          <Tooltip 
+                            contentStyle={{
+                              backgroundColor: 'white',
+                              border: '1px solid #d1d5db',
+                              borderRadius: '4px',
+                              padding: '8px 12px',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                            }}
+                            formatter={(value: number | undefined) => value !== undefined ? `${value > 0 ? '+' : ''}${value.toFixed(2)}%` : ''}
+                          />
+                          <Bar 
+                            dataKey="percentageChange" 
+                            radius={[0, 2, 2, 0]}
+                          >
+                            {allMovements.map((entry, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={entry.trend === 'UP' ? '#2563eb' : '#ef4444'}
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* Mobile Chart */}
+                    <div className="block md:hidden">
+                      <ResponsiveContainer width="100%" height={Math.max(350, allMovements.length * 35)}>
+                        <BarChart 
+                          data={allMovements}
+                          layout="vertical"
+                          margin={{ top: 15, right: 30, left: 120, bottom: 15 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis 
+                            type="number"
+                            stroke="#6b7280"
+                            style={{ fontSize: '10px' }}
+                            tickFormatter={(value) => `${value}%`}
+                          />
+                          <YAxis 
+                            type="category"
+                            dataKey="productName"
+                            stroke="#374151"
+                            style={{ fontSize: '10px' }}
+                            width={110}
+                          />
+                          <Tooltip 
+                            contentStyle={{
+                              backgroundColor: 'white',
+                              border: '1px solid #d1d5db',
+                              borderRadius: '4px',
+                              padding: '6px 10px',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                              fontSize: '10px'
+                            }}
+                            formatter={(value: number | undefined) => value !== undefined ? `${value > 0 ? '+' : ''}${value.toFixed(2)}%` : ''}
+                          />
+                          <Bar 
+                            dataKey="percentageChange" 
+                            radius={[0, 2, 2, 0]}
+                          >
+                            {allMovements.map((entry, index) => (
+                              <Cell 
+                                key={`cell-${index}`} 
+                                fill={entry.trend === 'UP' ? '#2563eb' : '#ef4444'}
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* Legend */}
+                    <div className="flex items-center justify-center gap-8 mt-6 pt-4 border-t border-gray-200">
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 rounded" style={{ backgroundColor: '#2563eb' }}></div>
+                        <span className="text-sm text-gray-700">Price Increase</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 rounded" style={{ backgroundColor: '#ef4444' }}></div>
+                        <span className="text-sm text-gray-700">Price Decrease</span>
+                      </div>
+                    </div>
+                  </>
+                )
+              })()}
             </>
           )}
         </div>

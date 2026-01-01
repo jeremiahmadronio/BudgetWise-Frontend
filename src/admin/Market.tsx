@@ -5,7 +5,7 @@
  * Manages market locations with viewing, editing, and product availability tracking
  */
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -15,13 +15,13 @@ import {
   fetchMarketStats,
   fetchMarketDetails,
   updateMarket,
-  updateMarketStatus,
+ 
   bulkUpdateMarketStatus
-} from '../admin-api/market-api'
+} from '../admin-api/market-api'    
 import type {
   MarketDisplayDTO,
   MarketStatsDTO,
-  MarketsPage
+
 } from '../admin-api/market-api'
 import {
   Store,
@@ -157,6 +157,21 @@ export function Market() {
   const [isSaving, setIsSaving] = useState(false)
   const [editRating, setEditRating] = useState<number>(0)
   const [hoverRating, setHoverRating] = useState<number>(0)
+  
+  // Products modal state
+  const [productsModal, setProductsModal] = useState<{
+    open: boolean
+    loading: boolean
+    marketId?: number
+    marketName?: string
+    products: any[]
+    filteredProducts: any[]
+    error?: string
+  }>({ open: false, loading: false, products: [], filteredProducts: [] })
+  const [productsPage, setProductsPage] = useState(0)
+  const [productsPageSize] = useState(5)
+  const [productsSearch, setProductsSearch] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('all')
 
   // ============================================================================
   // Data Fetching
@@ -299,6 +314,74 @@ export function Market() {
     }
   }
 
+  // Fetch market products
+  const fetchMarketProducts = async (marketId: number, marketName: string) => {
+    setProductsModal({ 
+      open: true, 
+      loading: true, 
+      marketId, 
+      marketName,
+      products: [],
+      filteredProducts: [],
+      error: undefined 
+    })
+    setProductsPage(0)
+    setProductsSearch('')
+    setSelectedCategory('all')
+    
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/markets/market-products/${marketId}`)
+      if (!response.ok) throw new Error('Failed to fetch products')
+      
+      const data = await response.json()
+      setProductsModal(prev => ({ 
+        ...prev, 
+        loading: false,
+        products: data,
+        filteredProducts: data
+      }))
+    } catch (error) {
+      console.error('Failed to fetch market products:', error)
+      setProductsModal(prev => ({ 
+        ...prev, 
+        loading: false,
+        error: 'Failed to load products. Please try again.' 
+      }))
+    }
+  }
+
+  // Filter products by search and category
+  useEffect(() => {
+    if (!productsModal.products.length) return
+    
+    let filtered = [...productsModal.products]
+    
+    // Filter by search
+    if (productsSearch.trim()) {
+      filtered = filtered.filter(p => 
+        p.productName?.toLowerCase().includes(productsSearch.toLowerCase())
+      )
+    }
+    
+    // Filter by category
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(p => p.productCategory === selectedCategory)
+    }
+    
+    setProductsModal(prev => ({ ...prev, filteredProducts: filtered }))
+    setProductsPage(0)
+  }, [productsSearch, selectedCategory, productsModal.products])
+
+  // Get unique categories
+  const categories = ['all', ...new Set(productsModal.products.map(p => p.productCategory).filter(Boolean))]
+  
+  // Paginate filtered products
+  const paginatedProducts = productsModal.filteredProducts.slice(
+    productsPage * productsPageSize,
+    (productsPage + 1) * productsPageSize
+  )
+  const productsTotalPages = Math.ceil(productsModal.filteredProducts.length / productsPageSize)
+
   // ============================================================================
   // Render
   // ============================================================================
@@ -307,72 +390,72 @@ export function Market() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 pt-2 md:pt-4 pb-4 md:pb-8">
         {/* Header */}
-        <div className="mb-6 md:mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Markets</h1>
-          <p className="text-sm md:text-base text-gray-600 mt-2">
+        <div className="mb-5 md:mb-6">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Markets</h1>
+          <p className="text-xs md:text-sm text-gray-600 mt-1">
             Manage market locations and track product availability
           </p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
-          <div className="bg-white border border-gray-200 rounded-lg p-5">
-            <div className="flex items-start justify-between mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+          <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
+            <div className="flex items-start justify-between mb-2">
               <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Markets</span>
-              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                <Store className="w-5 h-5 text-blue-600" />
+              <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                <Store className="w-4 h-4 text-blue-600" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-xl font-bold text-gray-900">
               {stats.totalMarkets}
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg p-5">
-            <div className="flex items-start justify-between mb-3">
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Active Markets</span>
-              <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-teal-600" />
+          <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
+            <div className="flex items-start justify-between mb-2">
+              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Active Markets</span>
+              <div className="w-8 h-8 bg-teal-50 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-teal-600" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-xl font-bold text-gray-900">
               {stats.activeMarkets}
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg p-5">
-            <div className="flex items-start justify-between mb-3">
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Supermarkets</span>
-              <div className="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center">
-                <ShoppingCart className="w-5 h-5 text-indigo-600" />
+          <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
+            <div className="flex items-start justify-between mb-2">
+              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Supermarkets</span>
+              <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center">
+                <ShoppingCart className="w-4 h-4 text-indigo-600" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-xl font-bold text-gray-900">
               {stats.totalSuperMarkets}
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-lg p-5">
-            <div className="flex items-start justify-between mb-3">
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Wet Markets</span>
-              <div className="w-10 h-10 bg-sky-50 rounded-lg flex items-center justify-center">
-                <Droplets className="w-5 h-5 text-sky-600" />
+          <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
+            <div className="flex items-start justify-between mb-2">
+              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Wet Markets</span>
+              <div className="w-8 h-8 bg-sky-50 rounded-lg flex items-center justify-center">
+                <Droplets className="w-4 h-4 text-sky-600" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-xl font-bold text-gray-900">
               {stats.totalWetMarkets}
             </div>
           </div>
         </div>
 
         {/* Info Banner */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 md:p-5 mb-4 md:mb-6 flex flex-col md:flex-row gap-2 md:gap-3">
-          <Info className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 md:p-4 mb-4 flex flex-col md:flex-row gap-2 shadow-sm">
+          <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
           <div>
-            <h4 className="text-base font-bold text-blue-900 mb-1">
+            <h4 className="text-sm font-semibold text-blue-900 mb-0.5">
               Quick Tip: Market Management
             </h4>
-            <p className="text-sm md:text-base text-blue-700">
+            <p className="text-xs md:text-sm text-blue-700">
               Click on "View Products" to see all products available in a specific market. Use search to
               quickly find markets by name or filter by type.
             </p>
@@ -428,10 +511,10 @@ export function Market() {
         </div>
 
         {/* Markets Table (desktop) */}
-        <div className="hidden lg:block bg-white border border-gray-200 rounded-lg overflow-x-auto shadow-sm">
+        <div className="hidden lg:block bg-white border border-gray-200 rounded-xl overflow-x-auto shadow-md">
           {/* Bulk Actions Bar */}
           {selectedMarkets.length > 0 && (
-            <div className="bg-blue-50 border-b border-blue-200 px-6 py-3 flex items-center justify-between">
+            <div className="bg-blue-50 border-b border-blue-200 px-4 py-2 flex items-center justify-between">
               <span className="text-sm font-medium text-blue-900">
                 {selectedMarkets.length} market(s) selected
               </span>
@@ -444,44 +527,44 @@ export function Market() {
             </div>
           )}
           <div className="w-full min-w-[350px] md:min-w-0">
-            <table className="min-w-[700px] w-full text-sm md:text-base">
+            <table className="min-w-[700px] w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-center py-3 px-3 md:px-4 w-12">
+                  <th className="text-center py-2.5 px-3 w-12">
                     <input
                       type="checkbox"
                       checked={selectedMarkets.length === filteredMarkets.length && filteredMarkets.length > 0}
                       onChange={toggleAllMarkets}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                      className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
                     />
                   </th>
-                  <th className="text-center py-3 px-3 md:px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                  <th className="text-left py-3 px-3 md:px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Market Name</th>
-                  <th className="text-center py-3 px-3 md:px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                  <th className="text-center py-3 px-3 md:px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Products</th>
-                  <th className="text-center py-3 px-3 md:px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="text-center py-3 px-3 md:px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="text-center py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                  <th className="text-left py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Market Name</th>
+                  <th className="text-center py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                  <th className="text-center py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Products</th>
+                  <th className="text-center py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  <th className="text-center py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredMarkets.map((market) => (
                   <tr key={market.id} className="hover:bg-gray-50 transition-colors border-b border-gray-100">
-                    <td className="py-4 px-3 md:px-4 text-center">
+                    <td className="py-2.5 px-3 text-center">
                       <input
                         type="checkbox"
                         checked={selectedMarkets.includes(market.id)}
                         onChange={() => toggleMarketSelection(market.id)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                        className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
                       />
                     </td>
-                    <td className="py-4 px-3 md:px-4 text-center">
-                      <div className="text-base text-gray-600">MK-{String(market.id).padStart(3, '0')}</div>
+                    <td className="py-2.5 px-3 text-center">
+                      <div className="text-sm text-gray-600">MK-{String(market.id).padStart(3, '0')}</div>
                     </td>
-                    <td className="py-4 px-3 md:px-4 text-left">
-                      <div className="text-base font-medium text-gray-900">{market.marketName}</div>
+                    <td className="py-2.5 px-3 text-left">
+                      <div className="text-sm font-medium text-gray-900">{market.marketName}</div>
                     </td>
-                    <td className="py-4 px-3 md:px-4 text-center">
-                      <span className={`text-sm px-3 py-1 rounded-md font-medium inline-block ${
+                    <td className="py-2.5 px-3 text-center">
+                      <span className={`text-xs px-2.5 py-1 rounded-md font-medium inline-block ${
                         (market.type || market.marketType) === 'SUPERMARKET' 
                           ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' 
                           : 'bg-sky-50 text-sky-700 border border-sky-100'
@@ -489,17 +572,20 @@ export function Market() {
                         {toTitleCase(market.type || market.marketType || '')}
                       </span>
                     </td>
-                    <td className="py-4 px-3 md:px-4 text-center">
-                      <button className="inline-flex items-center gap-1.5 text-cyan-600 hover:text-cyan-700 transition-colors">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <td className="py-2.5 px-3 text-center">
+                      <button 
+                        className="inline-flex items-center gap-1 text-cyan-600 hover:text-cyan-700 transition-colors"
+                        onClick={() => fetchMarketProducts(market.id, market.marketName)}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                         </svg>
-                        <span className="text-base font-semibold">{market.totalProductsAvailable} products</span>
+                        <span className="text-sm font-semibold">{market.totalProductsAvailable} products</span>
                       </button>
                     </td>
-                    <td className="py-4 px-3 md:px-4">
+                    <td className="py-2.5 px-3">
                       <div className="flex justify-center">
-                        <span className={`inline-block px-2.5 py-1 rounded text-sm font-medium ${
+                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
                           (market.status || market.marketStatus) === 'ACTIVE' ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-600'
                         }`}>{toTitleCase(market.status || market.marketStatus || '')}</span>
                       </div>
@@ -572,13 +658,13 @@ export function Market() {
             </div>
           )}
           {/* Pagination Controls */}
-          <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200">
-            <div className="text-sm text-gray-500">
+          <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200">
+            <div className="text-xs text-gray-500">
               Showing <span className="font-medium">{page * pageSize + 1}</span> to <span className="font-medium">{Math.min((page + 1) * pageSize, filteredMarkets.length)}</span> of <span className="font-medium">{filteredMarkets.length}</span> results
             </div>
             <div className="flex items-center gap-2">
               <button 
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" 
+                className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" 
                 onClick={() => setPage((p) => Math.max(0, p - 1))} 
                 disabled={page === 0}
               >
@@ -660,7 +746,10 @@ export function Market() {
               </div>
 
               {/* Products Available */}
-              <button className="flex items-center gap-2 text-sm text-cyan-600 hover:text-cyan-700 transition-colors mb-3">
+              <button 
+                className="flex items-center gap-2 text-sm text-cyan-600 hover:text-cyan-700 transition-colors mb-3"
+                onClick={() => fetchMarketProducts(market.id, market.marketName)}
+              >
                 <span className="font-semibold">{market.totalProductsAvailable} products</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -704,7 +793,7 @@ export function Market() {
                   <span>View</span>
                 </button>
                 <button 
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors font-medium"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm bg-teal-600 text-white hover:bg-teal-700 rounded transition-colors font-medium"
                   onClick={async () => {
                     try {
                       // Fetch full details from /view endpoint
@@ -759,7 +848,7 @@ export function Market() {
         setEditRating(0)
         setHoverRating(0)
       }}>
-        <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full p-4 md:p-6 animate-fadeIn max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full p-4 md:p-6 animate-fadeIn max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
           {/* Header */}
           <div className="flex items-center justify-between mb-4 md:mb-6">
             <div className="flex items-center gap-2">
@@ -1264,7 +1353,7 @@ export function Market() {
     {/* View Modal */}
     {viewModal.open && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-3 md:p-4" onClick={() => setViewModal({ open: false, loading: false })}>
-        <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full p-5 animate-fadeIn max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-5 animate-fadeIn max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
           
           {/* Loading State */}
           {viewModal.loading && (
@@ -1591,6 +1680,156 @@ export function Market() {
               Archive {bulkArchiveModal.count} Market{bulkArchiveModal.count > 1 ? 's' : ''}
             </button>
           </div>
+        </div>
+      </div>
+    )}
+
+    {/* Products Modal */}
+    {productsModal.open && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-2 md:p-4" onClick={() => setProductsModal({ open: false, loading: false, products: [], filteredProducts: [] })}>
+        <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full p-3 md:p-6 animate-fadeIn max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          {/* Header */}
+          <div className="flex items-center justify-between mb-3 md:mb-4 pb-3 border-b border-gray-200">
+            <div>
+              <h2 className="text-base md:text-lg font-bold text-gray-900">Market Products</h2>
+              <p className="text-xs text-gray-500 mt-0.5">{productsModal.marketName}</p>
+            </div>
+            <button
+              onClick={() => setProductsModal({ open: false, loading: false, products: [], filteredProducts: [] })}
+              className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Loading State */}
+          {productsModal.loading && (
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-cyan-600 mb-4"></div>
+              <p className="text-base font-semibold text-gray-900 mb-1">Loading Products...</p>
+              <p className="text-sm text-gray-500">Please wait while we fetch the data</p>
+            </div>
+          )}
+
+          {/* Error State */}
+          {!productsModal.loading && productsModal.error && (
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <p className="text-lg font-semibold text-gray-900 mb-2">Failed to Load</p>
+              <p className="text-sm text-gray-600">{productsModal.error}</p>
+            </div>
+          )}
+
+          {/* Content State */}
+          {!productsModal.loading && !productsModal.error && (
+            <>
+              {/* Category Tabs */}
+              <div className="mb-3 overflow-x-auto">
+                <div className="flex gap-2 min-w-max pb-2">
+                  {categories.map((category) => (
+                    <button
+                      key={category}
+                      onClick={() => setSelectedCategory(category)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                        selectedCategory === category
+                          ? 'bg-cyan-600 text-white shadow-sm'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {category === 'all' ? 'All Categories' : toTitleCase(category)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Search Bar */}
+              <div className="mb-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search products..."
+                    className="w-full pl-9 pr-4 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    value={productsSearch}
+                    onChange={(e) => setProductsSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Products Count */}
+              <div className="mb-3 text-xs text-gray-600">
+                Showing {paginatedProducts.length} of {productsModal.filteredProducts.length} products
+              </div>
+
+              {/* Products Grid */}
+              {paginatedProducts.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <p className="text-xs">No products found</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+                  {paginatedProducts.map((product, index) => (
+                    <div key={index} className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 text-xs mb-1">{product.productName || 'N/A'}</h3>
+                          <span className="inline-block text-[10px] px-2 py-0.5 rounded bg-cyan-50 text-cyan-700 font-medium">
+                            {toTitleCase(product.productCategory || 'Uncategorized')}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">Price:</span>
+                          <span className="font-semibold text-gray-900">₱{product.productPrice?.toFixed(2) || '0.00'}</span>
+                        </div>
+                        {product.dateRecorded && (
+                          <div className="text-[10px] text-gray-500 pt-1.5 border-t border-gray-100">
+                            Recorded: {new Date(product.dateRecorded).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination Controls */}
+              {productsTotalPages > 1 && (
+                <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                  <div className="text-xs text-gray-600">
+                    Page {productsPage + 1} of {productsTotalPages}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setProductsPage(p => Math.max(0, p - 1))}
+                      disabled={productsPage === 0}
+                      className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setProductsPage(p => Math.min(productsTotalPages - 1, p + 1))}
+                      disabled={productsPage >= productsTotalPages - 1}
+                      className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     )}
