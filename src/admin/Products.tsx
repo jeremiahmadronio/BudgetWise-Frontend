@@ -325,7 +325,7 @@ export function ProductsPage() {
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button 
                         className="px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-200 rounded-md transition-colors font-medium"
-                        onClick={() => setViewModal({ open: true, product: { ...product, status: ProductStatus.ACTIVE, totalDietaryTags: 0, lastUpdated: product.detectedDate } as ProductDisplayDTO, isNewProduct: true })}
+                        onClick={() => setViewModal({ open: true, product: { ...product, status: ProductStatus.ACTIVE, previousPrice: 0, totalDietaryTags: 0, lastUpdated: product.detectedDate } as ProductDisplayDTO, isNewProduct: true })}
                         title="View details"
                       >
                         View

@@ -9,6 +9,7 @@ import { Dashboard } from './admin/Dashboard';
 import { Analytics } from './admin/Analytics';
 import { Customers } from './admin/Customers';
 import { ProductsPage } from './admin/Products';
+import {ArchiveProductsPage} from './admin/ArchiveProducts';
 import { Market } from './admin/Market';
 import { Orders } from './admin/Orders';
 import { Settings } from './admin/Settings';
@@ -43,6 +44,7 @@ function App() {
           <Route path="products" element={<ProductsPage />} />
           <Route path="market" element={<Market />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="archive-products" element={<ArchiveProductsPage />} />
         </Route>
       </Routes>
     </>

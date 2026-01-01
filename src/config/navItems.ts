@@ -6,6 +6,7 @@ import {
   ShoppingCart,
   Settings,
   MapPinHouse,
+  Archive,
 } from 'lucide-react'
 
 export const userNavItems = [
@@ -25,4 +26,5 @@ export const adminNavItems = [
   { label: 'Market', path: '/admin/market', icon: MapPinHouse },
   { label: 'Products', path: '/admin/products', icon: Package },
   { label: 'Settings', path: '/admin/settings', icon: Settings },
+  { label: 'Archive', path: '/admin/archive-products', icon: Archive },
 ]
