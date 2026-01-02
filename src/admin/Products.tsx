@@ -32,7 +32,8 @@ import {
   AlertCircle,
   Info,
   Leaf,
-  CheckCircle
+  CheckCircle,
+  Store
 } from 'lucide-react'
 
 // ============================================================================
@@ -75,6 +76,21 @@ export function ProductsPage() {
   const [viewModal, setViewModal] = useState<{ open: boolean; product?: ProductDisplayDTO; isNewProduct?: boolean }>({ open: false })
   const [bulkArchiveModal, setBulkArchiveModal] = useState<{ open: boolean; count: number }>({ open: false, count: 0 })
   const [successModal, setSuccessModal] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+  
+  // Markets modal state
+  const [marketsModal, setMarketsModal] = useState<{
+    open: boolean
+    loading: boolean
+    productId?: number
+    productName?: string
+    markets: any[]
+    filteredMarkets: any[]
+    error?: string
+  }>({ open: false, loading: false, markets: [], filteredMarkets: [] })
+  const [marketsPage, setMarketsPage] = useState(0)
+  const [marketsPageSize] = useState(5)
+  const [marketsSearch, setMarketsSearch] = useState('')
+  const [selectedMarketType, setSelectedMarketType] = useState('all')
 
   // ============================================================================
   // Data Fetching
@@ -263,6 +279,74 @@ export function ProductsPage() {
       console.error(error)
     }
   }
+
+  /** Fetch product market details */
+  const fetchProductMarkets = async (productId: number, productName: string) => {
+    setMarketsModal({ 
+      open: true, 
+      loading: true, 
+      productId, 
+      productName,
+      markets: [],
+      filteredMarkets: [],
+      error: undefined 
+    })
+    setMarketsPage(0)
+    setMarketsSearch('')
+    setSelectedMarketType('all')
+    
+    try {
+      const response = await fetch(`http://localhost:8080/api/v1/products/marketDetails/${productId}`)
+      if (!response.ok) throw new Error('Failed to fetch markets')
+      
+      const data = await response.json()
+      setMarketsModal(prev => ({ 
+        ...prev, 
+        loading: false,
+        markets: data.marketDetails || [],
+        filteredMarkets: data.marketDetails || []
+      }))
+    } catch (error) {
+      console.error('Failed to fetch product markets:', error)
+      setMarketsModal(prev => ({ 
+        ...prev, 
+        loading: false,
+        error: 'Failed to load markets. Please try again.' 
+      }))
+    }
+  }
+  
+  // Filter markets by search and type
+  useEffect(() => {
+    if (!marketsModal.markets.length) return
+    
+    let filtered = [...marketsModal.markets]
+    
+    // Filter by search
+    if (marketsSearch.trim()) {
+      filtered = filtered.filter(m => 
+        m.marketName?.toLowerCase().includes(marketsSearch.toLowerCase())
+      )
+    }
+    
+    // Filter by market type
+    if (selectedMarketType !== 'all') {
+      filtered = filtered.filter(m => m.marketType === selectedMarketType)
+    }
+    
+    setMarketsModal(prev => ({ ...prev, filteredMarkets: filtered }))
+    setMarketsPage(0)
+  }, [marketsSearch, selectedMarketType, marketsModal.markets])
+
+  // Get unique market types
+  const marketTypes = ['all', ...new Set(marketsModal.markets.map(m => m.marketType).filter(Boolean))]
+  
+  // Paginate filtered markets
+  const paginatedMarkets = marketsModal.filteredMarkets.slice(
+    marketsPage * marketsPageSize,
+    (marketsPage + 1) * marketsPageSize
+  )
+  const marketsTotalPages = Math.ceil(marketsModal.filteredMarkets.length / marketsPageSize)
   
   // ============================================================================
   // Render
@@ -491,7 +575,8 @@ export function ProductsPage() {
                   <th className="text-left py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                   <th className="text-left py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
                   <th className="text-left py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                  <th className="text-right py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                  <th className="text-right py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Average Price</th>
+                  <th className="text-center py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Markets</th>
                   <th className="text-center py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="text-center py-2.5 px-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -525,6 +610,19 @@ export function ProductsPage() {
                     </td>
                     <td className="py-2.5 px-3 text-right">
                       <span className="text-sm font-semibold text-gray-900">{formatCurrency(product.price)}</span>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex justify-center">
+                        <button
+                          onClick={() => fetchProductMarkets(product.id, product.productName)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-md transition-colors font-medium"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                          </svg>
+                          <span>{product.totalMarkets} Markets</span>
+                        </button>
+                      </div>
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex justify-center">
@@ -639,9 +737,15 @@ export function ProductsPage() {
               {/* Additional Info */}
               <div className="flex items-center justify-between py-2">
                 <div className="flex items-center gap-4">
-                  <div className="text-sm text-gray-600">
-                    <span className="font-semibold text-gray-900">{product.totalMarkets}</span> markets
-                  </div>
+                  <button
+                    onClick={() => fetchProductMarkets(product.id, product.productName)}
+                    className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                    </svg>
+                    <span className="font-semibold">{product.totalMarkets} Markets</span>
+                  </button>
                   <div className="text-sm text-gray-600">
                     <span className="font-semibold text-gray-900">{product.totalDietaryTags}</span> tags
                   </div>
@@ -1096,6 +1200,149 @@ export function ProductsPage() {
               Edit Product
             </button>
           </div>
+        </div>
+      </div>
+    )}
+
+    {/* Markets Modal */}
+    {marketsModal.open && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-2 md:p-4" onClick={() => setMarketsModal({ open: false, loading: false, markets: [], filteredMarkets: [] })}>
+        <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full p-3 md:p-6 animate-fadeIn max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          {/* Header */}
+          <div className="flex items-center justify-between mb-4 md:mb-5">
+            <div>
+              <h2 className="text-lg md:text-xl font-bold text-gray-900">Markets Selling {marketsModal.productName}</h2>
+              <p className="text-xs md:text-sm text-gray-600 mt-1">
+                {marketsModal.filteredMarkets.length} market{marketsModal.filteredMarkets.length !== 1 ? 's' : ''} available
+              </p>
+            </div>
+            <button
+              onClick={() => setMarketsModal({ open: false, loading: false, markets: [], filteredMarkets: [] })}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Loading State */}
+          {marketsModal.loading && (
+            <div className="py-12 text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <p className="mt-3 text-sm text-gray-600">Loading markets...</p>
+            </div>
+          )}
+
+          {/* Error State */}
+          {marketsModal.error && (
+            <div className="py-12 text-center">
+              <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
+              <p className="text-sm text-red-600">{marketsModal.error}</p>
+            </div>
+          )}
+
+          {/* Content */}
+          {!marketsModal.loading && !marketsModal.error && (
+            <>
+              {/* Search and Filter */}
+              <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search markets..."
+                    className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    value={marketsSearch}
+                    onChange={(e) => setMarketsSearch(e.target.value)}
+                  />
+                </div>
+                <select
+                  className="px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
+                  value={selectedMarketType}
+                  onChange={(e) => setSelectedMarketType(e.target.value)}
+                >
+                  <option value="all">All Types</option>
+                  {marketTypes.filter(t => t !== 'all').map(type => (
+                    <option key={type} value={type}>{toTitleCase(type)}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Markets Table */}
+              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Market Name</th>
+                      <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                      <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Current Price</th>
+                      <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider">Unit</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {paginatedMarkets.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="py-8 text-center text-gray-500">
+                          <Store className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                          <p className="text-sm">No markets found</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      paginatedMarkets.map((market, index) => (
+                        <tr key={index} className="hover:bg-gray-50 transition-colors">
+                          <td className="py-3 px-4">
+                            <div className="font-medium text-gray-900">{market.marketName}</div>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`inline-block px-2.5 py-1 rounded text-xs font-medium ${
+                              market.marketType === 'SUPERMARKET' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'
+                            }`}>
+                              {toTitleCase(market.marketType)}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="font-semibold text-gray-900">{formatCurrency(market.currentPrice)}</span>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="text-gray-600">{market.unit}</span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {marketsTotalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                  <div className="text-xs text-gray-500">
+                    Showing {marketsPage * marketsPageSize + 1} to {Math.min((marketsPage + 1) * marketsPageSize, marketsModal.filteredMarkets.length)} of {marketsModal.filteredMarkets.length} markets
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setMarketsPage(p => Math.max(0, p - 1))}
+                      disabled={marketsPage === 0}
+                      className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm text-gray-600">
+                      Page {marketsPage + 1} of {marketsTotalPages}
+                    </span>
+                    <button
+                      onClick={() => setMarketsPage(p => Math.min(marketsTotalPages - 1, p + 1))}
+                      disabled={marketsPage >= marketsTotalPages - 1}
+                      className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     )}
