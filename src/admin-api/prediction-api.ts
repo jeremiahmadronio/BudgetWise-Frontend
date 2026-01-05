@@ -1,0 +1,316 @@
+// Price Prediction API Functions
+
+const API_BASE_URL = 'http://localhost:8080/api/v1'
+
+// ===========================
+// Type Definitions (matching DTOs)
+// ===========================
+
+export interface MarketInfoDTO {
+  id: number
+  name: string
+  location: string
+  productCount: number
+  predictionCount: number
+  anomalyCount: number
+}
+
+export interface PriceCalibrationDTO {
+  productId: number
+  productName: string
+  marketId: number
+  marketName: string
+  currentPrice: number
+  forecastPrice: number
+  trendPercentage: number
+  confidenceScore: number
+  status: string
+}
+
+export interface MarketPrediction {
+  marketId: number
+  marketName: string
+  marketLocation: string
+  currentPrice: number
+  forecastPrice: number
+  trendPercentage: number
+  confidenceScore: number
+  status: string
+  dataPoints: number
+}
+
+export interface ProductCentricPredictionDTO {
+  productId: number
+  productName: string
+  productCode: string
+  category: string
+  marketPredictions: MarketPrediction[]
+  averageCurrentPrice: number
+  averageForecastPrice: number
+  maxPriceDifference: number
+  mostExpensiveMarket: string
+  cheapestMarket: string
+  totalMarkets: number
+  anomalyCount: number
+}
+
+export interface DashboardStatsDTO {
+  totalProducts: number
+  activeMarkets: number
+  modelAccuracy: number
+  anomalies: number
+  totalPredictions: number
+  lastUpdated: string
+}
+
+export interface PaginatedResponse<T> {
+  content: T[]
+  page: {
+    size: number
+    number: number
+    totalElements: number
+    totalPages: number
+  }
+}
+
+// ===========================
+// API Functions
+// ===========================
+
+/**
+ * Trigger bulk prediction for all product-market pairs
+ * Returns immediately, processing happens asynchronously
+ */
+export async function triggerBulkPrediction(): Promise<{ 
+  status: string
+  message: string
+  timestamp: number 
+}> {
+  const response = await fetch(`${API_BASE_URL}/predictions/bulk-trigger`, {
+    method: 'POST',
+  })
+  
+  if (!response.ok) {
+    throw new Error('Failed to trigger bulk prediction')
+  }
+  
+  return response.json()
+}
+
+/**
+ * Get dashboard statistics
+ * For the stats cards at the top of the dashboard
+ */
+export async function fetchDashboardStats(): Promise<DashboardStatsDTO> {
+  const response = await fetch(`${API_BASE_URL}/predictions/dashboard/stats`)
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch dashboard stats')
+  }
+  
+  return response.json()
+}
+
+/**
+ * Get all active markets
+ * Used for market dropdown/selector in UI
+ */
+export async function fetchActiveMarkets(): Promise<MarketInfoDTO[]> {
+  const response = await fetch(`${API_BASE_URL}/predictions/markets`)
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch active markets')
+  }
+  
+  return response.json()
+}
+
+/**
+ * Get product-centric predictions with pagination
+ * Shows all products with predictions across ALL markets (MAIN ENDPOINT)
+ */
+export async function fetchProductCentricPredictions(
+  page: number = 0,
+  size: number = 10,
+  sortBy: string = 'productName',
+  sortDirection: 'ASC' | 'DESC' = 'ASC'
+): Promise<PaginatedResponse<ProductCentricPredictionDTO>> {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    size: size.toString(),
+    sortBy,
+    sortDirection
+  })
+  
+  const response = await fetch(`${API_BASE_URL}/predictions/products?${params}`)
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch product-centric predictions')
+  }
+  
+  return response.json()
+}
+
+/**
+ * Get comparison matrix
+ * Get specific products with full market comparison
+ */
+export async function fetchComparisonMatrix(
+  productIds?: number[]
+): Promise<ProductCentricPredictionDTO[]> {
+  let url = `${API_BASE_URL}/predictions/comparison-matrix`
+  
+  if (productIds && productIds.length > 0) {
+    const params = new URLSearchParams({
+      productIds: productIds.join(',')
+    })
+    url += `?${params}`
+  }
+  
+  const response = await fetch(url)
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch comparison matrix')
+  }
+  
+  return response.json()
+}
+
+/**
+ * Get market-centric predictions (alternative view)
+ * Shows all products for ONE specific market with pagination
+ */
+export async function fetchMarketCentricPredictions(
+  marketId: number,
+  page: number = 0,
+  size: number = 20,
+  sortBy: string = 'productName',
+  sortDirection: 'ASC' | 'DESC' = 'ASC'
+): Promise<PaginatedResponse<PriceCalibrationDTO>> {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    size: size.toString(),
+    sortBy,
+    sortDirection
+  })
+  
+  const response = await fetch(
+    `${API_BASE_URL}/predictions/markets/${marketId}/predictions?${params}`
+  )
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch predictions for market ${marketId}`)
+  }
+  
+  return response.json()
+}
+
+/**
+ * Search products across markets
+ * Useful for search functionality in the UI
+ */
+export async function searchProducts(
+  searchTerm: string,
+  page: number = 0,
+  size: number = 10
+): Promise<PaginatedResponse<ProductCentricPredictionDTO>> {
+  return fetchProductCentricPredictions(page, size, 'productName', 'ASC')
+}
+
+/**
+ * Get predictions by status filter
+ * Filter by Normal, Anomaly, etc.
+ */
+export async function fetchPredictionsByStatus(
+  status: string,
+  page: number = 0,
+  size: number = 10
+): Promise<PaginatedResponse<ProductCentricPredictionDTO>> {
+  // Note: Backend endpoint needs to support status filter
+  // For now, fetch all and filter client-side if needed
+  return fetchProductCentricPredictions(page, size, 'productName', 'ASC')
+}
+
+// ===========================
+// Helper Functions
+// ===========================
+
+/**
+ * Format confidence score as percentage
+ */
+export function formatConfidence(score: number): string {
+  return `${Math.round(score * 100)}%`
+}
+
+/**
+ * Get confidence level label
+ */
+export function getConfidenceLevel(score: number): 'HIGH' | 'MEDIUM' | 'LOW' {
+  if (score > 0.7) return 'HIGH'
+  if (score > 0.4) return 'MEDIUM'
+  return 'LOW'
+}
+
+/**
+ * Get trend direction icon
+ */
+export function getTrendIcon(percentage: number): string {
+  if (Math.abs(percentage) < 0.5) return '—'
+  return percentage > 0 ? '↗' : '↘'
+}
+
+/**
+ * Format price with PHP currency
+ */
+export function formatPrice(price: number): string {
+  return `₱${price.toFixed(2)}`
+}
+
+/**
+ * Format market name - convert underscore format to readable text
+ */
+export function formatMarketName(name: string): string {
+  if (!name) return ''
+  // Remove " Market" suffix if it exists to avoid duplication
+  let cleanName = name.replace(/\s+Market$/i, '')
+  // Convert WET_MARKET, SUPERMARKET, etc. to proper case
+  cleanName = cleanName.replace(/_/g, ' ')
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+  return cleanName
+}
+
+/**
+ * Format location - remove coordinates if present
+ */
+export function formatLocation(location: string): string {
+  if (!location) return ''
+  // Remove coordinates pattern like (0.0000, 0.0000) or (lat, lng)
+  return location.replace(/\s*\([^)]*\)\s*/g, '').trim()
+}
+
+/**
+ * Format trend percentage
+ */
+export function formatTrendPercentage(percentage: number): string {
+  const sign = percentage > 0 ? '+' : ''
+  return `${sign}${percentage.toFixed(1)}%`
+}
+
+/**
+ * Get status badge color
+ */
+export function getStatusColor(status: string): string {
+  switch (status.toUpperCase()) {
+    case 'NORMAL':
+      return 'green'
+    case 'ANOMALY':
+      return 'red'
+    case 'WARNING':
+      return 'yellow'
+    default:
+      return 'gray'
+  }
+}

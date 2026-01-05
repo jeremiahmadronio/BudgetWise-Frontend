@@ -13,6 +13,7 @@ import {ArchiveProductsPage} from './admin/ArchiveProducts';
 import { Market } from './admin/Market';
 import { Orders } from './admin/Orders';
 import { Settings } from './admin/Settings';
+import { Prediction } from './admin/Prediction';
 // User pages
 import { UserDashboard } from './user/Dashboard';
 import { UserAnalytics } from './user/Analytics';
@@ -45,6 +46,8 @@ function App() {
           <Route path="market" element={<Market />} />
           <Route path="settings" element={<Settings />} />
           <Route path="archive-products" element={<ArchiveProductsPage />} />
+          <Route path="predictions" element={<Prediction />} />
+
         </Route>
       </Routes>
     </>

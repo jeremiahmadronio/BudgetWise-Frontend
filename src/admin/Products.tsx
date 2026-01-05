@@ -28,11 +28,11 @@ import {
   Search,
   Eye,
   Pencil,
-  ChevronRight,
+ 
   AlertCircle,
   Info,
   Leaf,
-  CheckCircle,
+  
   Store
 } from 'lucide-react'
 

@@ -27,4 +27,5 @@ export const adminNavItems = [
   { label: 'Products', path: '/admin/products', icon: Package },
   { label: 'Settings', path: '/admin/settings', icon: Settings },
   { label: 'Archive', path: '/admin/archive-products', icon: Archive },
+  { label: 'Predictions', path: '/admin/predictions', icon: BarChart3 },
 ]
