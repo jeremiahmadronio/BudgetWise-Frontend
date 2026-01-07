@@ -455,13 +455,13 @@ export function Prediction() {
         </div>
 
         {/* View Switcher & Search */}
-        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-5 shadow-sm">
-          <div className="flex flex-wrap items-center gap-4">
+        <div className="bg-white border border-gray-200 rounded-xl p-3 md:p-4 mb-5 shadow-sm">
+          <div className="flex flex-col gap-3">
             {/* View Mode Buttons */}
-            <div className="flex flex-wrap gap-2 w-full md:w-auto">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
               <button
                 onClick={() => setViewMode('product')}
-                className={`flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 rounded-lg text-sm md:text-base font-medium transition-all flex-1 md:flex-initial ${
+                className={`flex items-center justify-center gap-1.5 px-2.5 md:px-4 py-2 rounded-lg text-xs md:text-base font-medium transition-all ${
                   viewMode === 'product'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -480,7 +480,7 @@ export function Prediction() {
 
               <button
                 onClick={() => setViewMode('market')}
-                className={`flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 rounded-lg text-sm md:text-base font-medium transition-all flex-1 md:flex-initial ${
+                className={`flex items-center justify-center gap-1.5 px-2.5 md:px-4 py-2 rounded-lg text-xs md:text-base font-medium transition-all ${
                   viewMode === 'market'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -505,7 +505,7 @@ export function Prediction() {
 
               <button
                 onClick={() => setViewMode('comparison')}
-                className={`flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 rounded-lg text-sm md:text-base font-medium transition-all flex-1 md:flex-initial ${
+                className={`flex items-center justify-center gap-1.5 px-2.5 md:px-4 py-2 rounded-lg text-xs md:text-base font-medium transition-all ${
                   viewMode === 'comparison'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -525,7 +525,7 @@ export function Prediction() {
 
               <button
                 onClick={() => setViewMode('anomaly')}
-                className={`flex items-center justify-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 rounded-lg text-sm md:text-base font-medium transition-all flex-1 md:flex-initial ${
+                className={`flex items-center justify-center gap-1.5 px-2.5 md:px-4 py-2 rounded-lg text-xs md:text-base font-medium transition-all col-span-2 sm:col-span-1 ${
                   viewMode === 'anomaly'
                     ? 'bg-red-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -553,7 +553,7 @@ export function Prediction() {
                   setSelectedMarket(market || null)
                   setMarketPage(0) // Reset to first page when changing market
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 {markets.map(market => (
                   <option key={market.id} value={market.id}>
@@ -565,10 +565,10 @@ export function Prediction() {
 
             {/* Search - Only show in Product view */}
             {viewMode === 'product' && (
-              <div className="flex-1 max-w-md">
+              <div className="w-full">
                 <div className="relative">
                   <svg
-                    className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-gray-400"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -585,11 +585,11 @@ export function Prediction() {
                     placeholder="Search all products..."
                     value={searchTerm}
                     onChange={(e) => handleSearchChange(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full pl-9 md:pl-10 pr-4 py-2 text-sm md:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   {isSearching && (
                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      <svg className="animate-spin h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
+                      <svg className="animate-spin h-4 w-4 md:h-5 md:w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
@@ -1975,36 +1975,36 @@ function MarketView({ predictions, loading, market, page, totalPages, onPageChan
           </div>
 
           {/* Mobile Card View */}
-          <div className="md:hidden space-y-3 p-4">
+          <div className="md:hidden space-y-4 p-4">
             {predictions.map((pred) => (
-              <div key={pred.productId} className="bg-gray-50 border border-gray-200 rounded-lg p-4 shadow-sm">
+              <div key={pred.productId} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
                 {/* Product Header */}
-                <div className="mb-3 pb-3 border-b border-gray-200">
-                  <h4 className="font-semibold text-gray-900 text-sm">{pred.productName || 'Unknown'}</h4>
+                <div className="mb-4 pb-3 border-b border-gray-200">
+                  <h4 className="font-bold text-gray-900 text-base">{pred.productName || 'Unknown'}</h4>
                 </div>
 
                 {/* Price Grid */}
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div className="bg-white p-3 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">Current Price</p>
-                    <p className="text-sm font-semibold text-gray-900">
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-3 rounded-lg border border-gray-200">
+                    <p className="text-xs text-gray-500 mb-1.5 font-medium">Current Price</p>
+                    <p className="text-base font-bold text-gray-900">
                       {pred.currentPrice ? formatPrice(pred.currentPrice) : '—'}
                     </p>
                   </div>
-                  <div className="bg-white p-3 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">Forecast Price</p>
-                    <p className="text-sm font-semibold text-blue-600">
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-lg border border-blue-200">
+                    <p className="text-xs text-blue-600 mb-1.5 font-medium">Forecast Price</p>
+                    <p className="text-base font-bold text-blue-700">
                       {pred.forecastPrice ? formatPrice(pred.forecastPrice) : '—'}
                     </p>
                   </div>
                 </div>
 
                 {/* Trend & Confidence */}
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div className="bg-white p-3 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">Trend</p>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-3 rounded-lg border border-gray-200">
+                    <p className="text-xs text-gray-500 mb-1.5 font-medium">Trend</p>
                     {pred.trendPercentage !== undefined && pred.trendPercentage !== null ? (
-                      <span className={`text-sm font-medium ${
+                      <span className={`text-sm font-bold ${
                         pred.trendPercentage > 0 ? 'text-red-600' : pred.trendPercentage < 0 ? 'text-green-600' : 'text-gray-600'
                       }`}>
                         {formatTrendPercentage(pred.trendPercentage)}
@@ -2013,13 +2013,13 @@ function MarketView({ predictions, loading, market, page, totalPages, onPageChan
                       <span className="text-sm text-gray-400">—</span>
                     )}
                   </div>
-                  <div className="bg-white p-3 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">Confidence</p>
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-3 rounded-lg border border-gray-200">
+                    <p className="text-xs text-gray-500 mb-1.5 font-medium">Confidence</p>
                     {pred.confidenceScore !== undefined && pred.confidenceScore !== null ? (
-                      <span className={`inline-block text-xs font-medium px-3 py-1 rounded ${
-                        getConfidenceLevel(pred.confidenceScore) === 'HIGH' ? 'bg-green-100 text-green-700' :
-                        getConfidenceLevel(pred.confidenceScore) === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
-                        'bg-gray-100 text-gray-600'
+                      <span className={`inline-block text-xs font-bold px-2.5 py-1 rounded-md ${
+                        getConfidenceLevel(pred.confidenceScore) === 'HIGH' ? 'bg-green-100 text-green-700 border border-green-200' :
+                        getConfidenceLevel(pred.confidenceScore) === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
+                        'bg-gray-100 text-gray-600 border border-gray-200'
                       }`}>
                         {formatConfidence(pred.confidenceScore)}
                       </span>
@@ -2030,13 +2030,13 @@ function MarketView({ predictions, loading, market, page, totalPages, onPageChan
                 </div>
 
                 {/* Status Badge */}
-                <div className="bg-white p-3 rounded-lg flex items-center justify-between mb-3">
-                  <span className="text-xs text-gray-500 font-medium">Status</span>
-                  <span className={`text-xs font-medium px-3 py-1 rounded ${
-                    pred.status === 'NORMAL' || pred.status === 'Normal' ? 'bg-green-100 text-green-700' : 
-                    pred.status === 'ANOMALY' || pred.status === 'Anomaly' ? 'bg-red-100 text-red-700' : 
-                    pred.status === 'NO_DATA' ? 'bg-gray-100 text-gray-600' :
-                    'bg-yellow-100 text-yellow-700'
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-3 rounded-lg flex items-center justify-between mb-4 border border-gray-200">
+                  <span className="text-xs text-gray-600 font-semibold">Status</span>
+                  <span className={`text-xs font-bold px-3 py-1.5 rounded-md ${
+                    pred.status === 'NORMAL' || pred.status === 'Normal' ? 'bg-green-100 text-green-700 border border-green-200' : 
+                    pred.status === 'ANOMALY' || pred.status === 'Anomaly' ? 'bg-red-100 text-red-700 border border-red-200' : 
+                    pred.status === 'NO_DATA' ? 'bg-gray-100 text-gray-600 border border-gray-200' :
+                    'bg-yellow-100 text-yellow-700 border border-yellow-200'
                   }`}>
                     {pred.status === 'NO_DATA' ? 'No Data' : pred.status || 'Unknown'}
                   </span>
@@ -2045,12 +2045,13 @@ function MarketView({ predictions, loading, market, page, totalPages, onPageChan
                 {/* Inspect Button */}
                 <button
                   onClick={() => onInspect(pred.productId, market.id, pred.productName, market.name, pred.trendPercentage)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm font-bold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
-                  Inspect Product
+                  Inspect Details
                 </button>
               </div>
             ))}
