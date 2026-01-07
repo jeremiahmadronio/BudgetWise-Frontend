@@ -22,10 +22,12 @@ export const userNavItems = [
 export const adminNavItems = [
   { label: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
   { label: 'Analytics', path: '/admin/analytics', icon: BarChart3 },
-  { label: 'Users', path: '/admin/users', icon: Users },
-  { label: 'Market', path: '/admin/market', icon: MapPinHouse },
   { label: 'Products', path: '/admin/products', icon: Package },
-  { label: 'Settings', path: '/admin/settings', icon: Settings },
+   { label: 'Market', path: '/admin/market', icon: MapPinHouse },
+   { label: 'Predictions', path: '/admin/predictions', icon: BarChart3 },
   { label: 'Archive', path: '/admin/archive-products', icon: Archive },
-  { label: 'Predictions', path: '/admin/predictions', icon: BarChart3 },
+  { label: 'Users', path: '/admin/users', icon: Users },
+  
+  { label: 'Settings', path: '/admin/settings', icon: Settings },
+  
 ]

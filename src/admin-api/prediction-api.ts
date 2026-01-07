@@ -214,7 +214,57 @@ export async function searchProducts(
   page: number = 0,
   size: number = 10
 ): Promise<PaginatedResponse<ProductCentricPredictionDTO>> {
-  return fetchProductCentricPredictions(page, size, 'productName', 'ASC')
+  // Fetch ALL products for comprehensive client-side search
+  const params = new URLSearchParams({
+    page: '0',
+    size: '10000', // Fetch ALL products
+    sortBy: 'productName',
+    sortDirection: 'ASC'
+  })
+  
+  const response = await fetch(`${API_BASE_URL}/predictions/products?${params}`)
+  
+  if (!response.ok) {
+    throw new Error('Failed to search products')
+  }
+  
+  const data = await response.json()
+  
+  // Client-side filtering with priority on "starts with"
+  const searchLower = searchTerm.toLowerCase().trim()
+  
+  // First priority: Products that START WITH search term
+  const startsWithMatches = data.content.filter((product: ProductCentricPredictionDTO) => 
+    product.productName.toLowerCase().startsWith(searchLower) ||
+    product.productCode.toLowerCase().startsWith(searchLower)
+  )
+  
+  // Second priority: Products that CONTAIN search term (but don't start with it)
+  const containsMatches = data.content.filter((product: ProductCentricPredictionDTO) => 
+    !product.productName.toLowerCase().startsWith(searchLower) &&
+    !product.productCode.toLowerCase().startsWith(searchLower) &&
+    (product.productName.toLowerCase().includes(searchLower) ||
+     product.productCode.toLowerCase().includes(searchLower))
+  )
+  
+  // Combine: starts with first, then contains
+  const filtered = [...startsWithMatches, ...containsMatches]
+  
+  // Manual pagination
+  const startIdx = page * size
+  const endIdx = startIdx + size
+  const paginatedContent = filtered.slice(startIdx, endIdx)
+  const totalPages = Math.ceil(filtered.length / size)
+  
+  return {
+    content: paginatedContent,
+    page: {
+      size: size,
+      number: page,
+      totalElements: filtered.length,
+      totalPages: totalPages
+    }
+  }
 }
 
 /**
