@@ -408,21 +408,21 @@ export function ProductsPage() {
                     {/* Actions */}
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button 
-                        className="px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 border border-blue-200 rounded-md transition-colors font-medium"
+                        className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200 rounded-lg transition-colors font-semibold"
                         onClick={() => setViewModal({ open: true, product: { ...product, status: ProductStatus.ACTIVE, previousPrice: 0, totalDietaryTags: 0, lastUpdated: product.detectedDate } as ProductDisplayDTO, isNewProduct: true })}
                         title="View details"
                       >
                         View
                       </button>
                       <button 
-                        className="px-3 py-2 text-sm text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors font-medium shadow-sm"
+                        className="px-3 py-2 text-sm text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-lg transition-all duration-200 font-semibold shadow-sm hover:shadow-md"
                         onClick={() => handleAdd(product.id)}
                         title="Add to catalog"
                       >
                         Add
                       </button>
                       <button 
-                        className="px-3 py-2 text-sm text-gray-600 hover:text-gray-700 hover:bg-gray-100 border border-gray-300 rounded-md transition-colors font-medium"
+                        className="px-3 py-2 text-sm text-gray-600 hover:text-gray-700 hover:bg-gray-100 border border-gray-300 rounded-lg transition-colors font-semibold"
                         onClick={() => handleIgnore(product.id)}
                         title="Ignore this product"
                       >
@@ -438,52 +438,60 @@ export function ProductsPage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+          {/* Total Products */}
           <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
-            <div className="flex items-start justify-between mb-2">
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Products</span>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Total Products</span>
               <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
                 <Package className="w-4 h-4 text-blue-600" />
               </div>
             </div>
-            <div className="text-xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900">
               {stats.totalProducts}
             </div>
+            <p className="text-xs text-gray-500 mt-1">All products in catalog</p>
           </div>
 
+          {/* Active Products */}
           <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
-            <div className="flex items-start justify-between mb-2">
-              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Active Products</span>
-              <div className="w-8 h-8 bg-teal-50 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-teal-600" />
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Active Products</span>
+              <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-green-600" />
               </div>
             </div>
-            <div className="text-xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900">
               {stats.activeProducts}
             </div>
+            <p className="text-xs text-gray-500 mt-1">Currently available</p>
           </div>
 
+          {/* Archived Products */}
           <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
-            <div className="flex items-start justify-between mb-2">
-              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Archived</span>
-              <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center">
-                <Archive className="w-4 h-4 text-amber-600" />
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Archived</span>
+              <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center">
+                <Archive className="w-4 h-4 text-orange-600" />
               </div>
             </div>
-            <div className="text-xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900">
               {stats.archivedProducts}
             </div>
+            <p className="text-xs text-gray-500 mt-1">Inactive products</p>
           </div>
 
+          {/* Dietary Tags */}
           <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
-            <div className="flex items-start justify-between mb-2">
-              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Dietary Tags</span>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Dietary Tags</span>
               <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
                 <Leaf className="w-4 h-4 text-purple-600" />
               </div>
             </div>
-            <div className="text-xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900">
               {stats.totalProductDietaryTags}
             </div>
+            <p className="text-xs text-gray-500 mt-1">Total tag assignments</p>
           </div>
         </div>
 
@@ -546,7 +554,7 @@ export function ProductsPage() {
               {selectedProducts.length > 0 && (
                 <button
                   onClick={handleBulkArchive}
-                  className="px-3 py-2 text-sm bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-md transition-colors shadow-sm flex items-center gap-1.5"
+                  className="px-3 py-2 text-sm bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-1.5"
                 >
                   <Archive className="w-3.5 h-3.5" />
                   Archive ({selectedProducts.length})
@@ -636,14 +644,14 @@ export function ProductsPage() {
                     <td className="py-4 px-4">
                       <div className="flex items-center justify-center gap-2">
                         <button 
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
                           onClick={() => setViewModal({ open: true, product })}
                         >
                           <Eye className="w-4 h-4" />
                           <span>View</span>
                         </button>
                         <button 
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-colors border border-gray-200"
                           onClick={() => setEditModal({ open: true, product })}
                         >
                           <Pencil className="w-4 h-4" />
@@ -755,14 +763,14 @@ export function ProductsPage() {
               {/* Action Buttons */}
               <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
                 <button 
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded transition-colors font-medium"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all duration-200 font-semibold shadow-sm hover:shadow-md"
                   onClick={() => setViewModal({ open: true, product })}
                 >
                   <Eye className="w-4 h-4" />
                   <span>View</span>
                 </button>
                 <button 
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors font-medium"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-semibold border border-gray-200"
                   onClick={() => setEditModal({ open: true, product })}
                 >
                   <Pencil className="w-4 h-4" />
@@ -857,13 +865,13 @@ export function ProductsPage() {
           {/* Actions */}
           <div className="flex gap-2 mt-5">
             <button
-              className="flex-1 px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+              className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200 transition-colors"
               onClick={() => setBulkArchiveModal({ open: false, count: 0 })}
             >
               Cancel
             </button>
             <button
-              className="flex-1 px-4 py-2 rounded-md bg-orange-600 text-white text-sm font-medium hover:bg-orange-700 transition-colors flex items-center justify-center gap-1.5"
+              className="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg"
               onClick={confirmBulkArchive}
             >
               <Archive className="w-4 h-4" />
@@ -1053,14 +1061,14 @@ export function ProductsPage() {
             <div className="flex gap-2 mt-5 pt-4 border-t border-gray-200">
               <button
                 type="button"
-                className="flex-1 px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200 transition-colors"
                 onClick={() => setEditModal({ open: false })}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-2 rounded-md bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm font-semibold transition-all duration-200 shadow-md hover:shadow-lg"
               >
                 Save Changes
               </button>
@@ -1179,13 +1187,13 @@ export function ProductsPage() {
           {/* Actions */}
           <div className="flex gap-2 mt-5 pt-4 border-t border-gray-200">
             <button
-              className="flex-1 px-4 py-2 rounded-md bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors"
+              className="flex-1 px-4 py-2.5 rounded-lg bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200 transition-colors border border-gray-200"
               onClick={() => setViewModal({ open: false })}
             >
               Close
             </button>
             <button
-              className="flex-1 px-4 py-2 rounded-md bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition-colors"
+              className="flex-1 px-4 py-2.5 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm font-semibold transition-all duration-200 shadow-md hover:shadow-lg"
               onClick={() => { 
                 setViewModal({ open: false }); 
                 if (viewModal.isNewProduct) {
@@ -1387,7 +1395,7 @@ export function ProductsPage() {
 
           {/* OK Button */}
           <button
-            className="px-8 md:px-10 py-2.5 md:py-3 rounded-lg bg-teal-600 text-white text-sm md:text-base font-semibold hover:bg-teal-700 transition-all shadow-md hover:scale-105 hover:shadow-lg active:scale-95"
+            className="px-8 md:px-10 py-2.5 md:py-3 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm md:text-base font-semibold transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105 active:scale-95"
             style={{
               opacity: 0,
               transform: 'translateY(10px)',
