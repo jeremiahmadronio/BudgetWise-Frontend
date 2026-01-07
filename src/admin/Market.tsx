@@ -399,52 +399,60 @@ export function Market() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+          {/* Total Markets */}
           <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
-            <div className="flex items-start justify-between mb-2">
-              <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Markets</span>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Total Markets</span>
               <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
                 <Store className="w-4 h-4 text-blue-600" />
               </div>
             </div>
-            <div className="text-xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900">
               {stats.totalMarkets}
             </div>
+            <p className="text-xs text-gray-500 mt-1">All registered markets</p>
           </div>
 
+          {/* Active Markets */}
           <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
-            <div className="flex items-start justify-between mb-2">
-              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Active Markets</span>
-              <div className="w-8 h-8 bg-teal-50 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-teal-600" />
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Active Markets</span>
+              <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-green-600" />
               </div>
             </div>
-            <div className="text-xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900">
               {stats.activeMarkets}
             </div>
+            <p className="text-xs text-gray-500 mt-1">Currently operational</p>
           </div>
 
+          {/* Supermarkets */}
           <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
-            <div className="flex items-start justify-between mb-2">
-              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Supermarkets</span>
-              <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center">
-                <ShoppingCart className="w-4 h-4 text-indigo-600" />
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Supermarkets</span>
+              <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center">
+                <ShoppingCart className="w-4 h-4 text-purple-600" />
               </div>
             </div>
-            <div className="text-xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900">
               {stats.totalSuperMarkets}
             </div>
+            <p className="text-xs text-gray-500 mt-1">Modern retail stores</p>
           </div>
 
+          {/* Wet Markets */}
           <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
-            <div className="flex items-start justify-between mb-2">
-              <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Wet Markets</span>
-              <div className="w-8 h-8 bg-sky-50 rounded-lg flex items-center justify-center">
-                <Droplets className="w-4 h-4 text-sky-600" />
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Wet Markets</span>
+              <div className="w-8 h-8 bg-cyan-50 rounded-lg flex items-center justify-center">
+                <Droplets className="w-4 h-4 text-cyan-600" />
               </div>
             </div>
-            <div className="text-xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900">
               {stats.totalWetMarkets}
             </div>
+            <p className="text-xs text-gray-500 mt-1">Traditional markets</p>
           </div>
         </div>
 
@@ -593,7 +601,7 @@ export function Market() {
                     <td className="py-4 px-3 md:px-4">  
                       <div className="flex items-center justify-center gap-2">
                         <button 
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
                           onClick={async () => {
                             console.log('Fetching market details for ID:', market.id)
                             
@@ -629,7 +637,7 @@ export function Market() {
                           <span>View</span>
                         </button>
                         <button 
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-colors border border-gray-200"
                           onClick={async () => {
                             try {
                               // Fetch full details from /view endpoint
@@ -757,7 +765,7 @@ export function Market() {
               {/* Action Buttons */}
               <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
                 <button 
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded transition-colors font-medium"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all duration-200 font-semibold shadow-sm hover:shadow-md"
                   onClick={async () => {
                     console.log('Fetching market details for ID:', market.id)
                     
@@ -793,7 +801,7 @@ export function Market() {
                   <span>View</span>
                 </button>
                 <button 
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm bg-teal-600 text-white hover:bg-teal-700 rounded transition-colors font-medium"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-semibold border border-gray-200"
                   onClick={async () => {
                     try {
                       // Fetch full details from /view endpoint
@@ -1314,7 +1322,7 @@ export function Market() {
             <div className="flex gap-2 md:gap-3 mt-4 md:mt-6 pt-3 md:pt-4 border-t border-gray-200">
               <button
                 type="button"
-                className="flex-1 px-4 md:px-5 py-2.5 md:py-3 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm md:text-base font-medium hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 md:px-5 py-2.5 md:py-3 rounded-lg border border-gray-200 bg-gray-100 text-gray-700 text-sm md:text-base font-semibold hover:bg-gray-200 transition-colors"
                 onClick={() => {
                   setEditModal({ open: false })
                   setEditLocation(null)
@@ -1330,7 +1338,7 @@ export function Market() {
               <button
                 type="submit"
                 disabled={isSaving}
-                className="flex-1 px-4 md:px-5 py-2.5 md:py-3 rounded-lg bg-teal-600 text-white text-sm md:text-base font-medium hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="flex-1 px-4 md:px-5 py-2.5 md:py-3 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm md:text-base font-semibold transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
               >
                 {isSaving ? (
                   <>
@@ -1665,13 +1673,13 @@ export function Market() {
           {/* Actions */}
           <div className="flex gap-3">
             <button
-              className="flex-1 px-5 py-3 rounded-lg border border-gray-300 bg-white text-gray-700 text-base font-medium hover:bg-gray-50 transition-colors"
+              className="flex-1 px-5 py-3 rounded-lg border border-gray-200 bg-gray-100 text-gray-700 text-base font-semibold hover:bg-gray-200 transition-colors"
               onClick={() => setBulkArchiveModal({ open: false, count: 0 })}
             >
               Cancel
             </button>
             <button
-              className="flex-1 px-5 py-3 rounded-lg bg-orange-600 text-white text-base font-medium hover:bg-orange-700 transition-colors flex items-center justify-center gap-2"
+              className="flex-1 px-5 py-3 rounded-lg bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-base font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
               onClick={confirmBulkArchive}
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
