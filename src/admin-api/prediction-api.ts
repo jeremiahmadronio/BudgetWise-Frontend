@@ -281,6 +281,72 @@ export async function fetchPredictionsByStatus(
   return fetchProductCentricPredictions(page, size, 'productName', 'ASC')
 }
 
+/**
+ * Fetch price history for debugging/inspection
+ * Used in the inspection modal to show historical price data and predictions
+ */
+export async function fetchPriceHistory(
+  productId: number,
+  marketId: number
+): Promise<any> {
+  const response = await fetch(
+    `${API_BASE_URL}/predictions/debug/history?productId=${productId}&marketId=${marketId}`
+  )
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch price history')
+  }
+  
+  return response.json()
+}
+
+/**
+ * Regenerate prediction for a specific product-market pair
+ * Recalculates the prediction using the latest data
+ */
+export async function regeneratePrediction(
+  productId: number,
+  marketId: number
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/predictions/generate?productId=${productId}&marketId=${marketId}`,
+    { method: 'POST' }
+  )
+  
+  if (!response.ok) {
+    throw new Error('Failed to regenerate prediction')
+  }
+}
+
+/**
+ * Apply manual override to prediction
+ * Allows admin to force a specific trend for a product-market pair
+ */
+export async function applyBulkOverride(
+  pairs: Array<{ productId: number; marketId: number }>,
+  forceTrend: string,
+  reason: string
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/predictions/bulk-override`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        pairs,
+        forceTrend,
+        reason
+      })
+    }
+  )
+  
+  if (!response.ok) {
+    throw new Error('Failed to apply override')
+  }
+}
+
 // ===========================
 // Helper Functions
 // ===========================

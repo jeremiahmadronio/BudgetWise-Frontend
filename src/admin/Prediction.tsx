@@ -6,6 +6,9 @@ import {
   fetchMarketCentricPredictions,
   triggerBulkPrediction,
   searchProducts,
+  fetchPriceHistory,
+  regeneratePrediction,
+  applyBulkOverride,
   formatPrice,
   formatTrendPercentage,
   formatConfidence,
@@ -86,6 +89,7 @@ export function Prediction() {
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [showOverrideModal, setShowOverrideModal] = useState(false)
   const [showSuccessModal, setShowSuccessModal] = useState(false)
+  const [successActionType, setSuccessActionType] = useState<'regenerate' | 'override'>('override')
   const [regenerating, setRegenerating] = useState(false)
   const [applyingOverride, setApplyingOverride] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
@@ -229,14 +233,10 @@ export function Prediction() {
   }
 
   // Fetch price history when inspecting
-  const fetchPriceHistory = async (productId: number, marketId: number) => {
+  const fetchHistory = async (productId: number, marketId: number) => {
     try {
       setHistoryLoading(true)
-      const response = await fetch(
-        `http://localhost:8080/api/v1/predictions/debug/history?productId=${productId}&marketId=${marketId}`
-      )
-      if (!response.ok) throw new Error('Failed to fetch history')
-      const data = await response.json()
+      const data = await fetchPriceHistory(productId, marketId)
       setHistoryData(data)
     } catch (error) {
       console.error('Failed to fetch price history:', error)
@@ -256,7 +256,7 @@ export function Prediction() {
       setSuccessMessage('')
     } else {
       setInspectingAnomaly({ productId, marketId, productName, marketName })
-      fetchPriceHistory(productId, marketId)
+      fetchHistory(productId, marketId)
       
       // Auto-select matching override option based on trend percentage
       if (trendPercentage !== undefined) {
@@ -286,18 +286,16 @@ export function Prediction() {
 
     try {
       setRegenerating(true)
-      const response = await fetch(
-        `http://localhost:8080/api/v1/predictions/generate?productId=${inspectingAnomaly.productId}&marketId=${inspectingAnomaly.marketId}`,
-        { method: 'POST' }
-      )
-      
-      if (!response.ok) throw new Error('Failed to regenerate prediction')
+      await regeneratePrediction(inspectingAnomaly.productId, inspectingAnomaly.marketId)
       
       setSuccessMessage('Prediction regenerated successfully!')
       setShowConfirmModal(false)
+      setSuccessActionType('regenerate')
+      setShowSuccessModal(true)
       
+      // Refresh data after regenerate
       setTimeout(() => {
-        fetchPriceHistory(inspectingAnomaly.productId, inspectingAnomaly.marketId)
+        fetchHistory(inspectingAnomaly.productId, inspectingAnomaly.marketId)
         // Reload comparison data to update anomaly view
         loadComparisonMatrix()
         // Reload current view data
@@ -322,33 +320,23 @@ export function Prediction() {
 
     try {
       setApplyingOverride(true)
-      const response = await fetch(
-        'http://localhost:8080/api/v1/predictions/bulk-override',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            pairs: [{
-              productId: inspectingAnomaly.productId,
-              marketId: inspectingAnomaly.marketId
-            }],
-            forceTrend: overrideType,
-            reason: overrideReason || 'No reason provided'
-          })
-        }
+      await applyBulkOverride(
+        [{
+          productId: inspectingAnomaly.productId,
+          marketId: inspectingAnomaly.marketId
+        }],
+        overrideType,
+        overrideReason || 'No reason provided'
       )
-      
-      if (!response.ok) throw new Error('Failed to apply override')
       
       setSuccessMessage('Override applied successfully!')
       setShowOverrideModal(false)
+      setSuccessActionType('override')
       setShowSuccessModal(true)
       
       // Refresh data after override
       setTimeout(() => {
-        fetchPriceHistory(inspectingAnomaly.productId, inspectingAnomaly.marketId)
+        fetchHistory(inspectingAnomaly.productId, inspectingAnomaly.marketId)
         // Reload comparison data to update anomaly view
         loadComparisonMatrix()
         // Reload current view data
@@ -551,8 +539,8 @@ export function Prediction() {
                     d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                   />
                 </svg>
-                <span className="whitespace-nowrap hidden sm:inline">Anomaly</span>
-                <span className="whitespace-nowrap sm:hidden">Alert</span>
+                <span className="whitespace-nowrap hidden sm:inline">Anomaly and Overriding</span>
+                <span className="whitespace-nowrap sm:hidden">Anomaly</span>
               </button>
             </div>
 
@@ -1371,10 +1359,13 @@ export function Prediction() {
               
               {/* Success Message */}
               <h3 className="text-2xl font-bold text-gray-900 text-center mb-2">
-                Override Applied!
+                {successActionType === 'regenerate' ? 'Prediction Regenerated!' : 'Override Applied!'}
               </h3>
               <p className="text-gray-600 text-center mb-6">
-                The price prediction has been successfully updated with your manual override.
+                {successActionType === 'regenerate' 
+                  ? 'The price prediction has been successfully recalculated using the latest data.'
+                  : 'The price prediction has been successfully updated with your manual override.'
+                }
               </p>
 
               {/* Details */}
@@ -1389,12 +1380,22 @@ export function Prediction() {
                       <span className="text-gray-600">Market:</span>
                       <span className="font-semibold text-gray-900">{inspectingAnomaly.marketName}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Override Type:</span>
-                      <span className="px-2 py-0.5 rounded bg-green-600 text-white text-xs font-bold">
-                        {overrideType}
-                      </span>
-                    </div>
+                    {successActionType === 'override' && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Override Type:</span>
+                        <span className="px-2 py-0.5 rounded bg-green-600 text-white text-xs font-bold">
+                          {overrideType}
+                        </span>
+                      </div>
+                    )}
+                    {successActionType === 'regenerate' && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Action:</span>
+                        <span className="px-2 py-0.5 rounded bg-green-600 text-white text-xs font-bold">
+                          REGENERATED
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
