@@ -528,7 +528,7 @@ export function Analytics() {
         </div>
 
         {/* Market Comparison Bar Chart */}
-        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-md mt-5">
+        <div className="bg-white border border-gray-200 rounded-xl p-4 md:p-6 shadow-md mt-5">
           {comparisonLoading && (
             <div className="flex flex-col items-center justify-center py-16 md:py-24">
               <div className="animate-spin rounded-full h-12 w-12 md:h-14 md:w-14 border-b-3 md:border-b-4 border-blue-600 mb-3 md:mb-4"></div>
@@ -622,43 +622,41 @@ export function Analytics() {
 
               {/* Mobile Bar Chart */}
               <div className="block md:hidden">
-                <ResponsiveContainer width="100%" height={380}>
+                <ResponsiveContainer width="100%" height={Math.max(300, marketComparisonData.length * 35)}>
                   <BarChart 
                     data={marketComparisonData}
-                    margin={{ top: 15, right: 20, left: 30, bottom: 70 }}
+                    layout="vertical"
+                    margin={{ top: 10, right: 40, left: 10, bottom: 10 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                     <XAxis 
-                      dataKey="marketName"
-                      stroke="#374151"
-                      style={{ fontSize: '10px' }}
-                      angle={-45}
-                      textAnchor="end"
-                      height={70}
-                    />
-                    <YAxis 
+                      type="number"
                       stroke="#6b7280"
                       style={{ fontSize: '10px' }}
                       tickFormatter={(value) => `₱${value}`}
-                      domain={[
-                        (dataMin: number) => Math.floor(dataMin * 0.95),
-                        (dataMax: number) => Math.ceil(dataMax * 1.05)
-                      ]}
+                    />
+                    <YAxis 
+                      type="category"
+                      dataKey="marketName"
+                      stroke="#374151"
+                      style={{ fontSize: '9px' }}
+                      width={100}
+                      interval={0}
                     />
                     <Tooltip 
                       contentStyle={{
                         backgroundColor: 'white',
                         border: '1px solid #d1d5db',
-                        borderRadius: '4px',
-                        padding: '6px 10px',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                        fontSize: '10px'
+                        borderRadius: '6px',
+                        padding: '8px 12px',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                        fontSize: '11px'
                       }}
                       formatter={(value: number | undefined) => value ? formatPrice(value) : ''}
                     />
                     <Bar 
                       dataKey="averagePrice" 
-                      radius={[4, 4, 0, 0]}
+                      radius={[0, 4, 4, 0]}
                     >
                       {marketComparisonData.map((entry, index) => (
                         <Cell 
@@ -672,14 +670,14 @@ export function Analytics() {
               </div>
 
               {/* Legend */}
-              <div className="flex items-center justify-center gap-8 mt-6 pt-4 border-t border-gray-200">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-8 mt-6 pt-4 border-t border-gray-200">
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded" style={{ backgroundColor: '#1e3a8a' }}></div>
-                  <span className="text-sm text-gray-700">Selected Market</span>
+                  <span className="text-xs sm:text-sm text-gray-700">Selected Market</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded" style={{ backgroundColor: '#3b82f6' }}></div>
-                  <span className="text-sm text-gray-700">Compared Markets</span>
+                  <span className="text-xs sm:text-sm text-gray-700">Compared Markets</span>
                 </div>
               </div>
             </>
@@ -687,7 +685,7 @@ export function Analytics() {
         </div>
 
         {/* Market Price Movements */}
-        <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-md mt-5">
+        <div className="bg-white border border-gray-200 rounded-xl p-4 md:p-6 shadow-md mt-5">
           {movementsLoading && (
             <div className="flex flex-col items-center justify-center py-16 md:py-24">
               <div className="animate-spin rounded-full h-12 w-12 md:h-14 md:w-14 border-b-3 md:border-b-4 border-blue-600 mb-3 md:mb-4"></div>
@@ -787,11 +785,11 @@ export function Analytics() {
 
                     {/* Mobile Chart */}
                     <div className="block md:hidden">
-                      <ResponsiveContainer width="100%" height={Math.max(350, allMovements.length * 35)}>
+                      <ResponsiveContainer width="100%" height={Math.max(400, allMovements.length * 40)}>
                         <BarChart 
                           data={allMovements}
                           layout="vertical"
-                          margin={{ top: 15, right: 30, left: 120, bottom: 15 }}
+                          margin={{ top: 10, right: 35, left: 10, bottom: 10 }}
                         >
                           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                           <XAxis 
@@ -804,23 +802,24 @@ export function Analytics() {
                             type="category"
                             dataKey="productName"
                             stroke="#374151"
-                            style={{ fontSize: '10px' }}
-                            width={110}
+                            style={{ fontSize: '9px' }}
+                            width={100}
+                            interval={0}
                           />
                           <Tooltip 
                             contentStyle={{
                               backgroundColor: 'white',
                               border: '1px solid #d1d5db',
-                              borderRadius: '4px',
-                              padding: '6px 10px',
-                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                              fontSize: '10px'
+                              borderRadius: '6px',
+                              padding: '8px 12px',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                              fontSize: '11px'
                             }}
                             formatter={(value: number | undefined) => value !== undefined ? `${value > 0 ? '+' : ''}${value.toFixed(2)}%` : ''}
                           />
                           <Bar 
                             dataKey="percentageChange" 
-                            radius={[0, 2, 2, 0]}
+                            radius={[0, 3, 3, 0]}
                           >
                             {allMovements.map((entry, index) => (
                               <Cell 
@@ -834,14 +833,14 @@ export function Analytics() {
                     </div>
 
                     {/* Legend */}
-                    <div className="flex items-center justify-center gap-8 mt-6 pt-4 border-t border-gray-200">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-8 mt-6 pt-4 border-t border-gray-200">
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 rounded" style={{ backgroundColor: '#2563eb' }}></div>
-                        <span className="text-sm text-gray-700">Price Increase</span>
+                        <span className="text-xs sm:text-sm text-gray-700">Price Increase</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 rounded" style={{ backgroundColor: '#ef4444' }}></div>
-                        <span className="text-sm text-gray-700">Price Decrease</span>
+                        <span className="text-xs sm:text-sm text-gray-700">Price Decrease</span>
                       </div>
                     </div>
                   </>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import  { useState, useEffect } from 'react'
 import {
   fetchDashboardStats,
   fetchActiveMarkets,
@@ -13,7 +13,7 @@ import {
   formatTrendPercentage,
   formatConfidence,
   getConfidenceLevel,
-  getTrendIcon,
+ 
   formatMarketName,
   formatLocation,
   type DashboardStatsDTO,
