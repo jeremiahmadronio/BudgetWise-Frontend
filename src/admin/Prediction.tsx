@@ -1,4 +1,4 @@
-import  { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import {
   fetchDashboardStats,
   fetchActiveMarkets,
@@ -13,7 +13,6 @@ import {
   formatTrendPercentage,
   formatConfidence,
   getConfidenceLevel,
- 
   formatMarketName,
   formatLocation,
   type DashboardStatsDTO,
@@ -94,6 +93,12 @@ export function Prediction() {
   const [applyingOverride, setApplyingOverride] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
 
+  // State for error handling
+  const [error, setError] = useState<string | null>(null)
+
+  // State for chart hover
+  const [hoveredPoint, setHoveredPoint] = useState<{date: string, price: number, x: number, y: number, type: 'history' | 'prediction'} | null>(null)
+
   // Fetch dashboard stats on mount
   useEffect(() => {
     loadDashboardStats()
@@ -105,10 +110,12 @@ export function Prediction() {
   const loadDashboardStats = async () => {
     try {
       setStatsLoading(true)
+      setError(null)
       const data = await fetchDashboardStats()
       setStats(data)
     } catch (error) {
       console.error('Failed to load dashboard stats:', error)
+      setError('Failed to load dashboard statistics. Please check your internet connection.')
     } finally {
       setStatsLoading(false)
     }
@@ -124,6 +131,7 @@ export function Prediction() {
       }
     } catch (error) {
       console.error('Failed to load markets:', error)
+      setError('Failed to load markets. Please check your internet connection.')
     }
   }
 
@@ -147,6 +155,7 @@ export function Prediction() {
     try {
       setProductLoading(true)
       setIsSearching(searchTerm.length > 0)
+      setError(null)
       
       const data = searchTerm.length > 0
         ? await searchProducts(searchTerm, productPage, 10)
@@ -156,6 +165,7 @@ export function Prediction() {
       setProductTotalPages(data.page.totalPages)
     } catch (error) {
       console.error('Failed to load product predictions:', error)
+      setError('Failed to load product predictions. Please check if the backend server is running.')
     } finally {
       setProductLoading(false)
       setIsSearching(false)
@@ -382,11 +392,12 @@ export function Prediction() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 pt-2 md:pt-4 pb-4 md:pb-8">
         {/* Header */}
-        <div className="mb-4 md:mb-5 flex justify-between items-start">
-          <div>
+        <div className="mb-4 md:mb-5 flex flex-col sm:flex-row gap-3 sm:gap-4 sm:justify-between sm:items-center">
+          <div className="flex-1 min-w-0">
             <h1 className="text-xl md:text-2xl font-bold text-gray-900">
               Price Prediction Intelligence
             </h1>
+
             <p className="text-xs md:text-sm text-gray-600 mt-1">
               Enterprise-grade cross-market analysis
             </p>
@@ -396,14 +407,14 @@ export function Prediction() {
           <button
             onClick={() => setShowBulkPredictionModal(true)}
             disabled={bulkPredictionRunning}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white font-medium transition-all ${
+            className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-white font-medium transition-all flex-shrink-0 whitespace-nowrap ${
               bulkPredictionRunning
                 ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700'
+                : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg'
             }`}
           >
             <svg
-              className="w-5 h-5"
+              className="w-5 h-5 flex-shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -415,9 +426,44 @@ export function Prediction() {
                 d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
               />
             </svg>
-            Run Bulk Prediction
+            <span className="hidden sm:inline">Run Bulk Prediction</span>
+            <span className="sm:hidden">Run Prediction</span>
           </button>
         </div>
+
+        {/* Error Alert */}
+        {error && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-5 shadow-sm">
+            <div className="flex items-start gap-3">
+              <svg className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="flex-1">
+                <h3 className="text-sm font-bold text-red-900 mb-1">Connection Error</h3>
+                <p className="text-sm text-red-700">{error}</p>
+                <button
+                  onClick={() => {
+                    setError(null)
+                    loadDashboardStats()
+                    loadMarkets()
+                    if (viewMode === 'product') loadProductPredictions()
+                  }}
+                  className="mt-2 text-sm font-medium text-red-700 hover:text-red-900 underline"
+                >
+                  Retry Connection
+                </button>
+              </div>
+              <button
+                onClick={() => setError(null)}
+                className="text-red-600 hover:text-red-800"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
@@ -910,7 +956,7 @@ export function Prediction() {
                     {/* Chart Container */}
                     <div className="bg-gray-50 rounded-lg p-4">
                       {/* Chart SVG */}
-                      <div className="w-full overflow-x-auto">
+                      <div className="w-full overflow-x-auto relative">
                         <svg viewBox="0 0 800 280" className="w-full min-w-[600px] md:min-w-0">
                           {/* Y-axis line */}
                           <line x1="60" y1="40" x2="60" y2="220" stroke="#d1d5db" strokeWidth="1.5" />
@@ -926,9 +972,12 @@ export function Prediction() {
 
                           {/* Price line and points */}
                           {(() => {
+                            // Reverse rawHistory to chronological order (oldest to newest)
+                            const chronologicalHistory = [...historyData.rawHistory].reverse()
+                            
                             // Get predictions for next 7 days
                             const predictions = historyData.predictions.slice(0, 7)
-                            const allPrices = [...historyData.rawHistory.map(h => h.price), ...predictions.map(p => p.predictedPrice)]
+                            const allPrices = [...chronologicalHistory.map(h => h.price), ...predictions.map(p => p.predictedPrice)]
                             const minPrice = Math.min(...allPrices)
                             const maxPrice = Math.max(...allPrices)
                             const priceRange = maxPrice - minPrice
@@ -937,7 +986,7 @@ export function Prediction() {
                             const chartMax = maxPrice + padding
                             const chartRange = chartMax - chartMin
 
-                            const totalPoints = historyData.rawHistory.length + predictions.length
+                            const totalPoints = chronologicalHistory.length + predictions.length
                             const getY = (price: number) => 220 - ((price - chartMin) / chartRange) * 180
                             const getX = (index: number) => 60 + (index / (totalPoints - 1)) * 700
 
@@ -950,16 +999,16 @@ export function Prediction() {
                                   strokeWidth="2.5"
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
-                                  points={historyData.rawHistory.map((h, i) => 
+                                  points={chronologicalHistory.map((h, i) => 
                                     `${getX(i)},${getY(h.price)}`
                                   ).join(' ')}
                                 />
 
                                 {/* Today reference line (vertical) */}
                                 <line
-                                  x1={getX(historyData.rawHistory.length - 1)}
+                                  x1={getX(chronologicalHistory.length - 1)}
                                   y1="40"
-                                  x2={getX(historyData.rawHistory.length - 1)}
+                                  x2={getX(chronologicalHistory.length - 1)}
                                   y2="220"
                                   stroke="#f59e0b"
                                   strokeWidth="2"
@@ -968,7 +1017,7 @@ export function Prediction() {
                                 />
                                 {/* Today label at top */}
                                 <text
-                                  x={getX(historyData.rawHistory.length - 1)}
+                                  x={getX(chronologicalHistory.length - 1)}
                                   y="25"
                                   textAnchor="middle"
                                   fontSize="11"
@@ -986,9 +1035,9 @@ export function Prediction() {
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
                                   points={[
-                                    `${getX(historyData.rawHistory.length - 1)},${getY(historyData.rawHistory[historyData.rawHistory.length - 1].price)}`,
+                                    `${getX(chronologicalHistory.length - 1)},${getY(chronologicalHistory[chronologicalHistory.length - 1].price)}`,
                                     ...predictions.map((p, i) => 
-                                      `${getX(historyData.rawHistory.length + i)},${getY(p.predictedPrice)}`
+                                      `${getX(chronologicalHistory.length + i)},${getY(p.predictedPrice)}`
                                     )
                                   ].join(' ')}
                                 />
@@ -1013,10 +1062,12 @@ export function Prediction() {
                                 })}
 
                                 {/* X-axis labels - Historical dates */}
-                                {historyData.rawHistory.map((h, i) => {
+                                {chronologicalHistory.map((h, i) => {
                                   // Show every 5th label and skip the last one (will show as Today)
-                                  if (i % 5 !== 0 || i === historyData.rawHistory.length - 1) return null
-                                  const date = new Date(h.date)
+                                  if (i % 5 !== 0 || i === chronologicalHistory.length - 1) return null
+                                  // Parse date properly: handle YYYY-MM-DD format
+                                  const dateParts = h.date.split('-')
+                                  const date = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]))
                                   return (
                                     <text
                                       key={`x-label-${i}`}
@@ -1034,7 +1085,7 @@ export function Prediction() {
 
                                 {/* Today date label (current date) */}
                                 <text
-                                  x={getX(historyData.rawHistory.length - 1)}
+                                  x={getX(chronologicalHistory.length - 1)}
                                   y="255"
                                   textAnchor="middle"
                                   fontSize="11"
@@ -1048,11 +1099,13 @@ export function Prediction() {
                                 {predictions.map((p, i) => {
                                   // Show last prediction date only
                                   if (i !== predictions.length - 1) return null
-                                  const date = new Date(p.date)
+                                  // Parse date properly: handle YYYY-MM-DD format
+                                  const dateParts = p.date.split('-')
+                                  const date = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]))
                                   return (
                                     <text
                                       key={`pred-label-${i}`}
-                                      x={getX(historyData.rawHistory.length + i)}
+                                      x={getX(chronologicalHistory.length + i)}
                                       y="240"
                                       textAnchor="middle"
                                       fontSize="11"
@@ -1066,7 +1119,132 @@ export function Prediction() {
                               </>
                             )
                           })()}
+
+                          {/* Interactive hover layer */}
+                          {(() => {
+                            const chronologicalHistory = [...historyData.rawHistory].reverse()
+                            const predictions = historyData.predictions.slice(0, 7)
+                            const allPrices = [...chronologicalHistory.map(h => h.price), ...predictions.map(p => p.predictedPrice)]
+                            const minPrice = Math.min(...allPrices)
+                            const maxPrice = Math.max(...allPrices)
+                            const priceRange = maxPrice - minPrice
+                            const padding = priceRange * 0.15
+                            const chartMin = minPrice - padding
+                            const chartMax = maxPrice + padding
+                            const chartRange = chartMax - chartMin
+                            const totalPoints = chronologicalHistory.length + predictions.length
+                            const getY = (price: number) => 220 - ((price - chartMin) / chartRange) * 180
+                            const getX = (index: number) => 60 + (index / (totalPoints - 1)) * 700
+
+                            // Prepare all data points with coordinates
+                            const allDataPoints = [
+                              ...chronologicalHistory.map((h, i) => {
+                                const dateParts = h.date.split('-')
+                                const date = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]))
+                                return {
+                                  x: getX(i),
+                                  y: getY(h.price),
+                                  date: date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+                                  price: h.price,
+                                  type: 'history' as const
+                                }
+                              }),
+                              ...predictions.map((p, i) => {
+                                const dateParts = p.date.split('-')
+                                const date = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]))
+                                return {
+                                  x: getX(chronologicalHistory.length + i),
+                                  y: getY(p.predictedPrice),
+                                  date: date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+                                  price: p.predictedPrice,
+                                  type: 'prediction' as const
+                                }
+                              })
+                            ]
+
+                            const handleMouseMove = (e: React.MouseEvent<SVGRectElement>) => {
+                              const svg = e.currentTarget.ownerSVGElement
+                              if (!svg) return
+
+                              const rect = svg.getBoundingClientRect()
+                              const mouseX = ((e.clientX - rect.left) / rect.width) * 800
+                              const mouseY = ((e.clientY - rect.top) / rect.height) * 280
+
+                              // Find nearest point
+                              let nearestPoint = allDataPoints[0]
+                              let minDistance = Infinity
+
+                              allDataPoints.forEach(point => {
+                                const distance = Math.abs(point.x - mouseX)
+                                if (distance < minDistance) {
+                                  minDistance = distance
+                                  nearestPoint = point
+                                }
+                              })
+
+                              setHoveredPoint(nearestPoint)
+                            }
+
+                            return (
+                              <>
+                                {/* Large invisible rect for hover detection */}
+                                <rect
+                                  x="60"
+                                  y="40"
+                                  width="700"
+                                  height="180"
+                                  fill="transparent"
+                                  onMouseMove={handleMouseMove}
+                                  onMouseLeave={() => setHoveredPoint(null)}
+                                  style={{ cursor: 'crosshair' }}
+                                />
+
+                                {/* Vertical line indicator */}
+                                {hoveredPoint && (
+                                  <line
+                                    x1={hoveredPoint.x}
+                                    y1="40"
+                                    x2={hoveredPoint.x}
+                                    y2="220"
+                                    stroke="#d1d5db"
+                                    strokeWidth="1"
+                                    style={{ pointerEvents: 'none' }}
+                                  />
+                                )}
+
+                                {/* Show dot at hovered point */}
+                                {hoveredPoint && (
+                                  <circle
+                                    cx={hoveredPoint.x}
+                                    cy={hoveredPoint.y}
+                                    r="5"
+                                    fill={hoveredPoint.type === 'history' ? '#2563eb' : '#10b981'}
+                                    stroke="white"
+                                    strokeWidth="2.5"
+                                    style={{ pointerEvents: 'none' }}
+                                  />
+                                )}
+                              </>
+                            )
+                          })()}
                         </svg>
+
+                        {/* Tooltip */}
+                        {hoveredPoint && (
+                          <div
+                            className="absolute bg-white border border-gray-200 text-xs px-3 py-2 rounded-lg shadow-xl pointer-events-none z-10"
+                            style={{
+                              left: `${(hoveredPoint.x / 800) * 100}%`,
+                              top: `${(hoveredPoint.y / 280) * 100}%`,
+                              transform: 'translate(-50%, -120%)'
+                            }}
+                          >
+                            <div className="font-semibold text-gray-900">{hoveredPoint.date}</div>
+                            <div className={hoveredPoint.type === 'history' ? 'text-blue-600 font-medium' : 'text-green-600 font-medium'}>
+                              Price : ₱{hoveredPoint.price.toFixed(2)}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Legend */}
@@ -1087,30 +1265,79 @@ export function Prediction() {
                     </div>
 
                     {/* Regression Stats */}
-                    <div className="mt-5 pt-5 border-t border-gray-200 grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="text-center">
-                        <p className="text-xs text-gray-500 mb-1">Data Points</p>
-                        <p className="text-2xl font-bold text-gray-900">{historyData.dataPoints}</p>
+                    <div className="mt-5 pt-5 border-t border-gray-200">
+                      <div className="mb-4">
+                        <h5 className="text-sm font-semibold text-gray-700 mb-3">📊 Statistical Metrics</h5>
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <ul className="space-y-2 text-xs text-gray-600">
+                            <li className="flex items-start gap-2">
+                              <span className="text-blue-600 mt-0.5">•</span>
+                              <span><span className="font-semibold text-gray-900">Data Points:</span> Number of past prices analyzed (30+ is ideal)</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-blue-600 mt-0.5">•</span>
+                              <span><span className="font-semibold text-gray-900">R² Score:</span> Prediction accuracy — 0.7-1.0 is good, 0.3-0.7 moderate, below 0.3 is poor</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-blue-600 mt-0.5">•</span>
+                              <span><span className="font-semibold text-gray-900">Trend:</span> Overall price direction (Upward/Downward/Stable)</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-blue-600 mt-0.5">•</span>
+                              <span><span className="font-semibold text-gray-900">Slope:</span> Rate of price change per day in pesos</span>
+                            </li>
+                          </ul>
+                        </div>
                       </div>
-                      <div className="text-center">
-                        <p className="text-xs text-gray-500 mb-1">R² Score</p>
-                        <p className="text-2xl font-bold text-blue-600">
-                          {historyData.regressionStats.rSquare.toFixed(3)}
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs text-gray-500 mb-1">Trend Direction</p>
-                        <p className={`text-lg font-bold ${
-                          historyData.regressionStats.slope > 0 ? 'text-red-600' : 'text-green-600'
-                        }`}>
-                          {historyData.regressionStats.slopeDirection}
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-xs text-gray-500 mb-1">Slope</p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {historyData.regressionStats.slope.toFixed(2)}
-                        </p>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="text-center">
+                          <p className="text-xs text-gray-500 mb-1">Data Points</p>
+                          <p className="text-2xl font-bold text-gray-900">{historyData.dataPoints}</p>
+                          <p className="text-xs text-gray-400 mt-1">samples</p>
+                        </div>
+                        
+                        <div className="text-center">
+                          <p className="text-xs text-gray-500 mb-1">R² Score</p>
+                          <p className="text-2xl font-bold text-blue-600">
+                            {historyData.regressionStats.rSquare.toFixed(3)}
+                          </p>
+                          <p className={`text-xs mt-1 font-medium ${
+                            historyData.regressionStats.rSquare >= 0.7 ? 'text-green-600' :
+                            historyData.regressionStats.rSquare >= 0.3 ? 'text-yellow-600' : 'text-red-600'
+                          }`}>
+                            {historyData.regressionStats.rSquare >= 0.7 ? '✓ Good' :
+                             historyData.regressionStats.rSquare >= 0.3 ? 'Moderate' : 'Poor'}
+                          </p>
+                        </div>
+                        
+                        <div className="text-center">
+                          <p className="text-xs text-gray-500 mb-1">Trend</p>
+                          <p className={`text-lg font-bold ${
+                            historyData.regressionStats.slope > 0 ? 'text-red-600' : 'text-green-600'
+                          }`}>
+                            {historyData.regressionStats.slopeDirection}
+                          </p>
+                          <div className="flex items-center justify-center mt-1">
+                            {historyData.regressionStats.slope > 0 ? (
+                              <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                              </svg>
+                            ) : (
+                              <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
+                              </svg>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <p className="text-xs text-gray-500 mb-1">Slope</p>
+                          <p className="text-2xl font-bold text-gray-900">
+                            {historyData.regressionStats.slope.toFixed(2)}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">₱/day</p>
+                        </div>
                       </div>
                     </div>
                   </div>
