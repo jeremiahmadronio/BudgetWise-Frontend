@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   fetchDashboardStats,
   fetchActiveMarkets,
@@ -198,7 +198,15 @@ export function Prediction() {
       setComparisonLoading(true)
       // Fetch with large page size to get all products for comparison dropdown
       const data = await fetchProductCentricPredictions(0, 1000, 'productName', 'ASC')
-      setComparisonData(data.content)
+        // Filter out products that have no valid prediction data
+      const validProducts = data.content.filter(product => 
+        product.marketPredictions.some(mp => 
+          mp.status !== 'NO_DATA' && 
+          mp.forecastPrice !== undefined && 
+          mp.forecastPrice !== null
+        )
+      )
+      setComparisonData(validProducts)
     } catch (error) {
       console.error('Failed to load comparison matrix:', error)
     } finally {
@@ -1168,7 +1176,6 @@ export function Prediction() {
 
                               const rect = svg.getBoundingClientRect()
                               const mouseX = ((e.clientX - rect.left) / rect.width) * 800
-                              const mouseY = ((e.clientY - rect.top) / rect.height) * 280
 
                               // Find nearest point
                               let nearestPoint = allDataPoints[0]
@@ -1839,7 +1846,7 @@ function ProductView({ products, loading, page, totalPages, onPageChange, search
                             )}
                           </td>
                           <td className="px-6 py-4 text-right">
-                            {market.forecastPrice && market.forecastPrice > 0 ? (
+                            {market.forecastPrice && market.forecastPrice > 0 && market.trendPercentage !== undefined ? (
                               <div className="flex items-center justify-end gap-1.5">
                                 {market.trendPercentage !== 0 && (
                                   <svg className={`w-4 h-4 ${
@@ -1865,7 +1872,7 @@ function ProductView({ products, loading, page, totalPages, onPageChange, search
                             )}
                           </td>
                           <td className="px-6 py-4 text-center">
-                            {market.forecastPrice && market.forecastPrice > 0 ? (
+                            {market.forecastPrice && market.forecastPrice > 0 && market.confidenceScore !== undefined ? (
                               <div className="flex flex-col items-center gap-1">
                                 <div className={`text-sm font-bold ${
                                   getConfidenceLevel(market.confidenceScore) === 'HIGH' ? 'text-green-600' :
@@ -1954,7 +1961,7 @@ function ProductView({ products, loading, page, totalPages, onPageChange, search
                       <div className="grid grid-cols-2 gap-3 mb-3">
                         <div className="bg-white p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Trend</p>
-                          {market.forecastPrice && market.forecastPrice > 0 ? (
+                          {market.forecastPrice && market.forecastPrice > 0 && market.trendPercentage !== undefined ? (
                             <span className={`text-sm font-medium ${
                               market.trendPercentage > 0 ? 'text-red-600' :
                               market.trendPercentage < 0 ? 'text-green-600' :
@@ -1968,7 +1975,7 @@ function ProductView({ products, loading, page, totalPages, onPageChange, search
                         </div>
                         <div className="bg-white p-3 rounded-lg">
                           <p className="text-xs text-gray-500 mb-1">Confidence</p>
-                          {market.forecastPrice && market.forecastPrice > 0 ? (
+                          {market.forecastPrice && market.forecastPrice > 0 && market.confidenceScore !== undefined ? (
                             <span className={`inline-block text-xs font-medium px-3 py-1 rounded ${
                               getConfidenceLevel(market.confidenceScore) === 'HIGH' ? 'bg-green-100 text-green-700' :
                               getConfidenceLevel(market.confidenceScore) === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700' :
@@ -2327,23 +2334,44 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
   const [market2Id, setMarket2Id] = useState<number | null>(null)
   const [productSearch, setProductSearch] = useState('')
   const [showProductDropdown, setShowProductDropdown] = useState(false)
+  const [showResults, setShowResults] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Set defaults when data loads
+  // Set defaults for markets only (not product)
   useEffect(() => {
-    if (data.length > 0 && !selectedProductId) {
-      setSelectedProductId(data[0].productId)
-    }
-    if (markets.length >= 2 && !market1Id) {
+    if (markets.length >= 2 && !market1Id && !market2Id) {
       setMarket1Id(markets[0].id)
       setMarket2Id(markets[1].id)
+    } else if (markets.length >= 1 && !market1Id) {
+      setMarket1Id(markets[0].id)
     }
-  }, [data, markets])
+  }, [markets, market1Id, market2Id])
 
-  // Filter products based on search
-  const filteredProducts = data.filter(p => 
-    p.productName.toLowerCase().includes(productSearch.toLowerCase()) ||
-    p.productCode.toLowerCase().includes(productSearch.toLowerCase())
-  )
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowProductDropdown(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Filter products based on search (optimized with useMemo)
+  const filteredProducts = useMemo(() => {
+    if (!productSearch.trim()) {
+      return data.slice(0, 50) // Show first 50 products when no search
+    }
+    const searchLower = productSearch.toLowerCase()
+    return data
+      .filter(p => 
+        p.productName.toLowerCase().includes(searchLower) ||
+        p.productCode.toLowerCase().includes(searchLower)
+      )
+      .slice(0, 50) // Limit to 50 results for performance
+  }, [data, productSearch])
 
   // Only show loading if there's no data yet (initial load)
   // If data exists, show it immediately even if refreshing
@@ -2361,8 +2389,42 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
   const market1 = markets.find(m => m.id === market1Id)
   const market2 = markets.find(m => m.id === market2Id)
 
-  const market1Pred = selectedProduct?.marketPredictions.find(mp => mp.marketId === market1Id)
-  const market2Pred = selectedProduct?.marketPredictions.find(mp => mp.marketId === market2Id)
+  const market1Pred = selectedProduct?.marketPredictions.find(mp => 
+    mp.marketId === market1Id && 
+    mp.status !== 'NO_DATA' && 
+    mp.forecastPrice !== undefined
+  )
+  const market2Pred = selectedProduct?.marketPredictions.find(mp => 
+    mp.marketId === market2Id && 
+    mp.status !== 'NO_DATA' && 
+    mp.forecastPrice !== undefined
+  )
+
+  // Show message if no data is available
+  if (data.length === 0 && !loading) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
+        <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+        <p className="text-gray-600 text-lg font-medium">No comparison data available</p>
+        <p className="text-gray-500 text-sm mt-2">Please run bulk prediction first</p>
+      </div>
+    )
+  }
+
+  if (markets.length === 0) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
+        <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        <p className="text-gray-600 text-lg font-medium">No markets available</p>
+        <p className="text-gray-500 text-sm mt-2">Please add markets to compare</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5">
@@ -2370,9 +2432,9 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
       <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
         <h3 className="text-lg font-bold text-gray-900 mb-4">Compare Markets</h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
           {/* Product Combobox */}
-          <div className="relative">
+          <div className="relative md:col-span-2" ref={dropdownRef}>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Select Product
             </label>
@@ -2381,11 +2443,13 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
                 type="text"
                 className="w-full border border-gray-300 rounded-lg px-4 py-2 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 placeholder="Search products..."
-                value={selectedProduct ? selectedProduct.productName : productSearch}
+                value={selectedProduct && !showProductDropdown ? selectedProduct.productName : productSearch}
                 onChange={(e) => {
                   setProductSearch(e.target.value)
                   setSelectedProductId(null)
-                  setShowProductDropdown(true)
+                  if (!showProductDropdown) {
+                    setShowProductDropdown(true)
+                  }
                 }}
                 onFocus={() => setShowProductDropdown(true)}
               />
@@ -2400,30 +2464,47 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
                 {filteredProducts.map(product => (
                   <div
                     key={product.productId}
-                    className="px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm"
+                    className="px-4 py-2.5 hover:bg-blue-50 cursor-pointer text-sm border-b border-gray-100 last:border-b-0 transition-colors"
                     onClick={() => {
                       setSelectedProductId(product.productId)
                       setProductSearch('')
                       setShowProductDropdown(false)
+                      setShowResults(false)
                     }}
                   >
-                    <div className="font-medium text-gray-900">{product.productName}</div>
-                    <div className="text-xs text-gray-500">{product.productCode}</div>
+                    <div className="font-medium text-gray-900 truncate">
+                      {product.productName}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      {product.productCode}
+                    </div>
                   </div>
                 ))}
+                {data.length > filteredProducts.length && (
+                  <div className="px-4 py-2 text-xs text-gray-400 italic text-center bg-gray-50">
+                    Showing {filteredProducts.length} of {data.length}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* No Results Message */}
+            {showProductDropdown && productSearch && filteredProducts.length === 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4 text-center text-sm text-gray-500">
+                No products found
               </div>
             )}
           </div>
 
           {/* Market 1 Selector */}
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Market 1
             </label>
             <select
               value={market1Id || ''}
               onChange={(e) => setMarket1Id(Number(e.target.value))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             >
               {markets.map(market => (
                 <option key={market.id} value={market.id}>
@@ -2434,14 +2515,14 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
           </div>
 
           {/* Market 2 Selector */}
-          <div>
+          <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Market 2
             </label>
             <select
               value={market2Id || ''}
               onChange={(e) => setMarket2Id(Number(e.target.value))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
             >
               {markets.map(market => (
                 <option key={market.id} value={market.id}>
@@ -2450,11 +2531,45 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
               ))}
             </select>
           </div>
+
+          {/* Compare Button */}
+          <div className="md:col-span-1">
+            <button
+              onClick={() => setShowResults(true)}
+              disabled={!selectedProductId || !market1Id || !market2Id}
+              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-300 flex items-center justify-center gap-2 text-sm"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Compare
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Comparison Cards */}
-      {selectedProduct && (
+      {!showResults ? (
+        <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
+          <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          <p className="text-gray-600 text-lg font-medium">
+            {!selectedProductId ? 'Select a product and markets to compare' : 'Click "Compare Markets" button to view results'}
+          </p>
+          <p className="text-gray-500 text-sm mt-2">
+            {!selectedProductId ? 'Choose a product from the dropdown above' : 'All fields are ready for comparison'}
+          </p>
+        </div>
+      ) : !selectedProduct ? (
+        <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
+          <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+          </svg>
+          <p className="text-gray-600 text-lg font-medium">Select a product to compare</p>
+          <p className="text-gray-500 text-sm mt-2">Choose a product from the dropdown above</p>
+        </div>
+      ) : selectedProduct && market1 && market2 ? (
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
           {/* Product Header */}
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-5 border-b border-gray-200">
@@ -2480,19 +2595,14 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
           <div className="p-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Market 1 Card */}
-              {market1 && (
+              {market1 && market1Pred && (
                 <div className="border-2 border-blue-200 rounded-xl overflow-hidden bg-blue-50">
                   <div className="bg-blue-600 px-5 py-3">
                     <h3 className="text-lg font-bold text-white">{formatMarketName(market1.name)}</h3>
                     <p className="text-sm text-blue-100">{formatLocation(market1.location)}</p>
                   </div>
                   
-                  {!market1Pred ? (
-                    <div className="p-8 text-center text-gray-500">
-                      No prediction data available
-                    </div>
-                  ) : (
-                    <div className="p-6 bg-white space-y-4">
+                  <div className="p-6 bg-white space-y-4">
                       {/* Current Price */}
                       <div className="flex items-center justify-between py-3 border-b border-gray-200">
                         <span className="text-gray-700 font-medium">Current Price</span>
@@ -2505,7 +2615,7 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
                       <div className="flex items-center justify-between py-3 border-b border-gray-200">
                         <span className="text-gray-700 font-medium">Forecast Price</span>
                         <span className="text-2xl font-bold text-blue-600">
-                          {formatPrice(market1Pred.forecastPrice)}
+                          {market1Pred.forecastPrice !== undefined ? formatPrice(market1Pred.forecastPrice) : '—'}
                         </span>
                       </div>
 
@@ -2513,7 +2623,7 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
                       <div className="flex items-center justify-between py-3 border-b border-gray-200">
                         <span className="text-gray-700 font-medium">Price Difference</span>
                         <span className="text-xl font-semibold text-gray-900">
-                          {formatPrice(Math.abs(market1Pred.forecastPrice - market1Pred.currentPrice))}
+                          {market1Pred.forecastPrice !== undefined ? formatPrice(Math.abs(market1Pred.forecastPrice - market1Pred.currentPrice)) : '—'}
                         </span>
                       </div>
 
@@ -2521,10 +2631,10 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
                       <div className="flex items-center justify-between py-3 border-b border-gray-200">
                         <span className="text-gray-700 font-medium">Trend</span>
                         <span className={`text-2xl font-bold ${
-                          market1Pred.trendPercentage > 0 ? 'text-red-600' : 
-                          market1Pred.trendPercentage < 0 ? 'text-green-600' : 'text-gray-600'
+                          market1Pred.trendPercentage !== undefined && market1Pred.trendPercentage > 0 ? 'text-red-600' : 
+                          market1Pred.trendPercentage !== undefined && market1Pred.trendPercentage < 0 ? 'text-green-600' : 'text-gray-600'
                         }`}>
-                          {formatTrendPercentage(market1Pred.trendPercentage)}
+                          {market1Pred.trendPercentage !== undefined ? formatTrendPercentage(market1Pred.trendPercentage) : '—'}
                         </span>
                       </div>
 
@@ -2533,35 +2643,41 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
                         <span className="text-gray-700 font-medium">Confidence</span>
                         <div className="text-right">
                           <div className="text-xl font-bold text-gray-900">
-                            {formatConfidence(market1Pred.confidenceScore)}
+                            {market1Pred.confidenceScore !== undefined ? formatConfidence(market1Pred.confidenceScore) : '—'}
                           </div>
                           <div className={`text-sm font-semibold ${
-                            getConfidenceLevel(market1Pred.confidenceScore) === 'HIGH' ? 'text-green-600' :
-                            getConfidenceLevel(market1Pred.confidenceScore) === 'MEDIUM' ? 'text-yellow-600' : 'text-red-600'
+                            market1Pred.confidenceScore !== undefined && getConfidenceLevel(market1Pred.confidenceScore) === 'HIGH' ? 'text-green-600' :
+                            market1Pred.confidenceScore !== undefined && getConfidenceLevel(market1Pred.confidenceScore) === 'MEDIUM' ? 'text-yellow-600' : 'text-red-600'
                           }`}>
-                            {getConfidenceLevel(market1Pred.confidenceScore)}
+                            {market1Pred.confidenceScore !== undefined ? getConfidenceLevel(market1Pred.confidenceScore) : '—'}
                           </div>
                         </div>
                       </div>
                     </div>
-                  )}
+                </div>
+              )}
+              
+              {market1 && !market1Pred && (
+                <div className="border-2 border-blue-200 rounded-xl overflow-hidden bg-blue-50">
+                  <div className="bg-blue-600 px-5 py-3">
+                    <h3 className="text-lg font-bold text-white">{formatMarketName(market1.name)}</h3>
+                    <p className="text-sm text-blue-100">{formatLocation(market1.location)}</p>
+                  </div>
+                  <div className="p-8 text-center text-gray-500">
+                    No prediction data available for this market
+                  </div>
                 </div>
               )}
 
               {/* Market 2 Card */}
-              {market2 && (
+              {market2 && market2Pred && (
                 <div className="border-2 border-green-200 rounded-xl overflow-hidden bg-green-50">
                   <div className="bg-green-600 px-5 py-3">
                     <h3 className="text-lg font-bold text-white">{formatMarketName(market2.name)}</h3>
                     <p className="text-sm text-green-100">{formatLocation(market2.location)}</p>
                   </div>
                   
-                  {!market2Pred ? (
-                    <div className="p-8 text-center text-gray-500">
-                      No prediction data available
-                    </div>
-                  ) : (
-                    <div className="p-6 bg-white space-y-4">
+                  <div className="p-6 bg-white space-y-4">
                       {/* Current Price */}
                       <div className="flex items-center justify-between py-3 border-b border-gray-200">
                         <span className="text-gray-700 font-medium">Current Price</span>
@@ -2574,7 +2690,7 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
                       <div className="flex items-center justify-between py-3 border-b border-gray-200">
                         <span className="text-gray-700 font-medium">Forecast Price</span>
                         <span className="text-2xl font-bold text-blue-600">
-                          {formatPrice(market2Pred.forecastPrice)}
+                          {market2Pred.forecastPrice !== undefined ? formatPrice(market2Pred.forecastPrice) : '—'}
                         </span>
                       </div>
 
@@ -2582,7 +2698,7 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
                       <div className="flex items-center justify-between py-3 border-b border-gray-200">
                         <span className="text-gray-700 font-medium">Price Difference</span>
                         <span className="text-xl font-semibold text-gray-900">
-                          {formatPrice(Math.abs(market2Pred.forecastPrice - market2Pred.currentPrice))}
+                          {market2Pred.forecastPrice !== undefined ? formatPrice(Math.abs(market2Pred.forecastPrice - market2Pred.currentPrice)) : '—'}
                         </span>
                       </div>
 
@@ -2590,10 +2706,10 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
                       <div className="flex items-center justify-between py-3 border-b border-gray-200">
                         <span className="text-gray-700 font-medium">Trend</span>
                         <span className={`text-2xl font-bold ${
-                          market2Pred.trendPercentage > 0 ? 'text-red-600' : 
-                          market2Pred.trendPercentage < 0 ? 'text-green-600' : 'text-gray-600'
+                          market2Pred.trendPercentage !== undefined && market2Pred.trendPercentage > 0 ? 'text-red-600' : 
+                          market2Pred.trendPercentage !== undefined && market2Pred.trendPercentage < 0 ? 'text-green-600' : 'text-gray-600'
                         }`}>
-                          {formatTrendPercentage(market2Pred.trendPercentage)}
+                          {market2Pred.trendPercentage !== undefined ? formatTrendPercentage(market2Pred.trendPercentage) : '—'}
                         </span>
                       </div>
 
@@ -2602,18 +2718,29 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
                         <span className="text-gray-700 font-medium">Confidence</span>
                         <div className="text-right">
                           <div className="text-xl font-bold text-gray-900">
-                            {formatConfidence(market2Pred.confidenceScore)}
+                            {market2Pred.confidenceScore !== undefined ? formatConfidence(market2Pred.confidenceScore) : '—'}
                           </div>
                           <div className={`text-sm font-semibold ${
-                            getConfidenceLevel(market2Pred.confidenceScore) === 'HIGH' ? 'text-green-600' :
-                            getConfidenceLevel(market2Pred.confidenceScore) === 'MEDIUM' ? 'text-yellow-600' : 'text-red-600'
+                            market2Pred.confidenceScore !== undefined && getConfidenceLevel(market2Pred.confidenceScore) === 'HIGH' ? 'text-green-600' :
+                            market2Pred.confidenceScore !== undefined && getConfidenceLevel(market2Pred.confidenceScore) === 'MEDIUM' ? 'text-yellow-600' : 'text-red-600'
                           }`}>
-                            {getConfidenceLevel(market2Pred.confidenceScore)}
+                            {market2Pred.confidenceScore !== undefined ? getConfidenceLevel(market2Pred.confidenceScore) : '—'}
                           </div>
                         </div>
                       </div>
                     </div>
-                  )}
+                </div>
+              )}
+              
+              {market2 && !market2Pred && (
+                <div className="border-2 border-green-200 rounded-xl overflow-hidden bg-green-50">
+                  <div className="bg-green-600 px-5 py-3">
+                    <h3 className="text-lg font-bold text-white">{formatMarketName(market2.name)}</h3>
+                    <p className="text-sm text-green-100">{formatLocation(market2.location)}</p>
+                  </div>
+                  <div className="p-8 text-center text-gray-500">
+                    No prediction data available for this market
+                  </div>
                 </div>
               )}
             </div>
@@ -2640,12 +2767,12 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
                   <div className="bg-white p-4 rounded-lg border border-gray-200">
                     <p className="text-sm text-gray-600 mb-1">Forecast Price Difference</p>
                     <p className="text-2xl font-bold text-blue-600">
-                      {formatPrice(Math.abs(market1Pred.forecastPrice - market2Pred.forecastPrice))}
+                      {market1Pred.forecastPrice !== undefined && market2Pred.forecastPrice !== undefined ? formatPrice(Math.abs(market1Pred.forecastPrice - market2Pred.forecastPrice)) : '—'}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      {market1Pred.forecastPrice > market2Pred.forecastPrice 
+                      {market1Pred.forecastPrice !== undefined && market2Pred.forecastPrice !== undefined && market1Pred.forecastPrice > market2Pred.forecastPrice 
                         ? `${market1.name} will be more expensive` 
-                        : `${market2.name} will be more expensive`}
+                        : market1Pred.forecastPrice !== undefined && market2Pred.forecastPrice !== undefined ? `${market2.name} will be more expensive` : '—'}
                     </p>
                   </div>
 
@@ -2653,7 +2780,7 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
                   <div className="bg-white p-4 rounded-lg border border-gray-200">
                     <p className="text-sm text-gray-600 mb-1">Better Deal (Forecast)</p>
                     <p className="text-2xl font-bold text-green-600">
-                      {market1Pred.forecastPrice < market2Pred.forecastPrice ? market1.name : market2.name}
+                      {market1Pred.forecastPrice !== undefined && market2Pred.forecastPrice !== undefined ? (market1Pred.forecastPrice < market2Pred.forecastPrice ? market1.name : market2.name) : '—'}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
                       Lower predicted price
@@ -2663,6 +2790,14 @@ function ComparisonView({ data, loading, markets }: ComparisonViewProps) {
               </div>
             )}
           </div>
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
+          <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-gray-600 text-lg font-medium">Loading markets...</p>
+          <p className="text-gray-500 text-sm mt-2">Please wait while we load market data</p>
         </div>
       )}
     </div>
@@ -2732,9 +2867,9 @@ function AnomalyView({ data, loading, onInspect }: AnomalyViewProps) {
           marketName: mp.marketName,
           marketLocation: mp.marketLocation,
           currentPrice: mp.currentPrice,
-          forecastPrice: mp.forecastPrice,
-          trendPercentage: mp.trendPercentage,
-          confidenceScore: mp.confidenceScore,
+          forecastPrice: mp.forecastPrice ?? 0,
+          trendPercentage: mp.trendPercentage ?? 0,
+          confidenceScore: mp.confidenceScore ?? 0,
           status: mp.status
         })
       })

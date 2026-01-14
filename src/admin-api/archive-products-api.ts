@@ -1,12 +1,12 @@
 /**
- * Archive Products API Service
- * Handles all archived product-related API requests
+ * Archive Products & Markets API Service
+ * Handles all archived product and market-related API requests
  */
 
-const API_BASE = 'http://localhost:8080/api/v1/archive'
+const API_BASE = 'http://localhost:8080/api/v1'
 
 // ============================================================================
-// Type Definitions
+// Type Definitions - Products
 // ============================================================================
 
 /** Archive statistics */
@@ -39,14 +39,45 @@ export interface ArchivedProductsPage {
 }
 
 // ============================================================================
-// Fetch Operations
+// Type Definitions - Markets
+// ============================================================================
+
+/** Market archive statistics */
+export interface MarketArchiveStatsDTO {
+  totalArchive: number
+  archiveThisMonth: number
+  highRated: number
+}
+
+/** Archived market display information */
+export interface ArchivedMarketDTO {
+  id: number
+  marketLocation: string
+  type: string
+  ratings: number
+  archivedDate: string
+}
+
+/** Paginated archived markets response */
+export interface ArchivedMarketsPage {
+  content: ArchivedMarketDTO[]
+  page: {
+    size: number
+    number: number
+    totalElements: number
+    totalPages: number
+  }
+}
+
+// ============================================================================
+// Fetch Operations - Products
 // ============================================================================
 
 /**
  * Fetch archive statistics
  */
 export async function fetchArchiveStats(): Promise<ArchiveStatsDTO> {
-  const res = await fetch(`${API_BASE}/archive/stats`)
+  const res = await fetch(`${API_BASE}/archive/archive/stats`)
   if (!res.ok) throw new Error('Failed to fetch archive stats')
   return res.json()
 }
@@ -57,13 +88,37 @@ export async function fetchArchiveStats(): Promise<ArchiveStatsDTO> {
  * @param size - Items per page
  */
 export async function fetchArchivedProductsPage(page = 0, size = 10): Promise<ArchivedProductsPage> {
-  const res = await fetch(`${API_BASE}/archive/table?page=${page}&size=${size}`)
+  const res = await fetch(`${API_BASE}/archive/archive/table?page=${page}&size=${size}`)
   if (!res.ok) throw new Error('Failed to fetch archived products')
   return res.json()
 }
 
 // ============================================================================
-// Update Operations
+// Fetch Operations - Markets
+// ============================================================================
+
+/**
+ * Fetch market archive statistics
+ */
+export async function fetchMarketArchiveStats(): Promise<MarketArchiveStatsDTO> {
+  const res = await fetch(`${API_BASE}/markets/archive/stats`)
+  if (!res.ok) throw new Error('Failed to fetch market archive stats')
+  return res.json()
+}
+
+/**
+ * Fetch paginated archived markets list
+ * @param page - Page number (0-indexed)
+ * @param size - Items per page
+ */
+export async function fetchArchivedMarketsPage(page = 0, size = 10): Promise<ArchivedMarketsPage> {
+  const res = await fetch(`${API_BASE}/markets/archive/table?page=${page}&size=${size}`)
+  if (!res.ok) throw new Error('Failed to fetch archived markets')
+  return res.json()
+}
+
+// ============================================================================
+// Update Operations - Products
 // ============================================================================
 
 /**
@@ -72,7 +127,7 @@ export async function fetchArchivedProductsPage(page = 0, size = 10): Promise<Ar
  * @param newStatus - Status to set (should be "ACTIVE")
  */
 export async function restoreProduct(id: number, newStatus: string = 'ACTIVE'): Promise<void> {
-  const res = await fetch(`${API_BASE}/updateStatus`, {
+  const res = await fetch(`${API_BASE}/archive/updateStatus`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id, newStatus }),
@@ -86,10 +141,40 @@ export async function restoreProduct(id: number, newStatus: string = 'ACTIVE'): 
  * @param newStatus - Status to set (should be "ACTIVE")
  */
 export async function bulkRestoreProducts(ids: number[], newStatus: string = 'ACTIVE'): Promise<void> {
-  const res = await fetch(`${API_BASE}/bulk-status`, {
+  const res = await fetch(`${API_BASE}/archive/bulk-status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ ids, newStatus }),
   })
   if (!res.ok) throw new Error('Failed to bulk restore products')
+}
+
+// ============================================================================
+// Update Operations - Markets
+// ============================================================================
+
+/**
+ * Restore archived market
+ * @param id - Market ID
+ */
+export async function restoreMarket(id: number): Promise<void> {
+  const res = await fetch(`${API_BASE}/markets/archive/restore`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify([id]),
+  })
+  if (!res.ok) throw new Error('Failed to restore market')
+}
+
+/**
+ * Bulk restore archived markets
+ * @param ids - Array of market IDs to restore
+ */
+export async function bulkRestoreMarkets(ids: number[]): Promise<void> {
+  const res = await fetch(`${API_BASE}/markets/archive/restore`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(ids),
+  })
+  if (!res.ok) throw new Error('Failed to bulk restore markets')
 }

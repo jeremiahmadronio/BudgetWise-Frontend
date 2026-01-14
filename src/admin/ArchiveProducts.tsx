@@ -8,19 +8,27 @@ import {
   fetchArchiveStats,
   fetchArchivedProductsPage,
   restoreProduct,
-  bulkRestoreProducts
+  bulkRestoreProducts,
+  fetchMarketArchiveStats,
+  fetchArchivedMarketsPage,
+  restoreMarket,
+  bulkRestoreMarkets
 } from '../admin-api/archive-products-api'
 import type {
   ArchiveStatsDTO,
   ArchivedProductDTO,
-  
+  MarketArchiveStatsDTO,
+  ArchivedMarketDTO
 } from '../admin-api/archive-products-api'
 import {
   Archive,
   RotateCcw,
   Search,
   Clock,
-  Calendar
+  Calendar,
+  Star,
+  Package,
+  MapPinHouse
 } from 'lucide-react'
 
 export function ArchiveProductsPage() {
@@ -28,6 +36,10 @@ export function ArchiveProductsPage() {
   // State Management
   // ============================================================================
 
+  // View toggle
+  const [view, setView] = useState<'products' | 'markets'>('products')
+
+  // Products state
   const [products, setProducts] = useState<ArchivedProductDTO[]>([])
   const [stats, setStats] = useState<ArchiveStatsDTO>({
     totalArchived: 0,
@@ -35,6 +47,15 @@ export function ArchiveProductsPage() {
     awaitingReview: 0,
   })
   const [selectedProducts, setSelectedProducts] = useState<number[]>([])
+  
+  // Markets state
+  const [markets, setMarkets] = useState<ArchivedMarketDTO[]>([])
+  const [marketStats, setMarketStats] = useState<MarketArchiveStatsDTO>({
+    totalArchive: 0,
+    archiveThisMonth: 0,
+    highRated: 0,
+  })
+  const [selectedMarkets, setSelectedMarkets] = useState<number[]>([])
   
   // Search and pagination
   const [searchTerm, setSearchTerm] = useState('')
@@ -45,17 +66,21 @@ export function ArchiveProductsPage() {
   // Filters
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [originFilter, setOriginFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState('all')
   
   // Modals
   const [bulkRestoreModal, setBulkRestoreModal] = useState<{ open: boolean; count: number }>({ open: false, count: 0 })
-  const [restoreModal, setRestoreModal] = useState<{ open: boolean; productId: number | null; productName: string }>({ open: false, productId: null, productName: '' })
+  const [restoreModal, setRestoreModal] = useState<{ open: boolean; id: number | null; name: string }>({ open: false, id: null, name: '' })
   const [successModal, setSuccessModal] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
 
   // ============================================================================
   // Data Fetching
   // ============================================================================
 
+  // Fetch products data
   useEffect(() => {
+    if (view !== 'products') return
+    
     const fetchData = async () => {
       try {
         const [productsPage, statsData] = await Promise.all([
@@ -67,13 +92,47 @@ export function ArchiveProductsPage() {
         setTotalPages(productsPage.page?.totalPages || 1)
         setStats(statsData)
       } catch (err) {
-        console.error('Failed to fetch data:', err)
-        alert('Failed to fetch data from API. Please check your connection.')
+        console.error('Failed to fetch products data:', err)
+        alert('Failed to fetch products data from API. Please check your connection.')
       }
     }
     
     fetchData()
-  }, [page, pageSize])
+  }, [page, pageSize, view])
+
+  // Fetch markets data
+  useEffect(() => {
+    if (view !== 'markets') return
+    
+    const fetchData = async () => {
+      try {
+        const [marketsPage, statsData] = await Promise.all([
+          fetchArchivedMarketsPage(page, pageSize),
+          fetchMarketArchiveStats(),
+        ])
+        
+        setMarkets(marketsPage.content || [])
+        setTotalPages(marketsPage.page?.totalPages || 1)
+        setMarketStats(statsData)
+      } catch (err) {
+        console.error('Failed to fetch markets data:', err)
+        alert('Failed to fetch markets data from API. Please check your connection.')
+      }
+    }
+    
+    fetchData()
+  }, [page, pageSize, view])
+
+  // Reset page when view changes
+  useEffect(() => {
+    setPage(0)
+    setSearchTerm('')
+    setCategoryFilter('all')
+    setOriginFilter('all')
+    setTypeFilter('all')
+    setSelectedProducts([])
+    setSelectedMarkets([])
+  }, [view])
 
   // ============================================================================
   // Filtering Logic
@@ -92,13 +151,25 @@ export function ArchiveProductsPage() {
     return true
   })
 
+  const filteredMarkets = markets.filter((market) => {
+    if (searchTerm && !market.marketLocation.trim().toLowerCase().includes(searchTerm.trim().toLowerCase())) {
+      return false
+    }
+    if (typeFilter !== 'all' && market.type !== typeFilter) {
+      return false
+    }
+    return true
+  })
+
   const categories = Array.from(new Set(products.map(p => p.category)))
   const origins = Array.from(new Set(products.map(p => p.origin)))
+  const marketTypes = Array.from(new Set(markets.map(m => m.type)))
 
   const resetFilters = () => {
     setSearchTerm('')
     setCategoryFilter('all')
     setOriginFilter('all')
+    setTypeFilter('all')
   }
 
   // ============================================================================
@@ -126,29 +197,44 @@ export function ArchiveProductsPage() {
   // ============================================================================
 
   /** Show restore confirmation modal */
-  const handleRestore = async (productId: number, productName: string) => {
-    setRestoreModal({ open: true, productId, productName })
+  const handleRestore = async (id: number, name: string) => {
+    setRestoreModal({ open: true, id, name })
   }
 
   /** Confirm single restore operation */
   const confirmRestore = async () => {
-    if (!restoreModal.productId) return
+    if (!restoreModal.id) return
 
     try {
-      await restoreProduct(restoreModal.productId, 'ACTIVE')
-      setRestoreModal({ open: false, productId: null, productName: '' })
-      setSuccessModal({ open: true, message: 'Product has been successfully restored!' })
+      if (view === 'products') {
+        await restoreProduct(restoreModal.id, 'ACTIVE')
+        setRestoreModal({ open: false, id: null, name: '' })
+        setSuccessModal({ open: true, message: 'Product has been successfully restored!' })
 
-      // Refresh data
-      const [productsPage, statsData] = await Promise.all([
-        fetchArchivedProductsPage(page, pageSize),
-        fetchArchiveStats(),
-      ])
-      setProducts(productsPage.content || [])
-      setTotalPages(productsPage.page?.totalPages || 1)
-      setStats(statsData)
+        // Refresh data
+        const [productsPage, statsData] = await Promise.all([
+          fetchArchivedProductsPage(page, pageSize),
+          fetchArchiveStats(),
+        ])
+        setProducts(productsPage.content || [])
+        setTotalPages(productsPage.page?.totalPages || 1)
+        setStats(statsData)
+      } else {
+        await restoreMarket(restoreModal.id)
+        setRestoreModal({ open: false, id: null, name: '' })
+        setSuccessModal({ open: true, message: 'Market has been successfully restored!' })
+
+        // Refresh data
+        const [marketsPage, statsData] = await Promise.all([
+          fetchArchivedMarketsPage(page, pageSize),
+          fetchMarketArchiveStats(),
+        ])
+        setMarkets(marketsPage.content || [])
+        setTotalPages(marketsPage.page?.totalPages || 1)
+        setMarketStats(statsData)
+      }
     } catch (error) {
-      alert('Failed to restore product. Please try again.')
+      alert(`Failed to restore ${view === 'products' ? 'product' : 'market'}. Please try again.`)
       console.error(error)
     }
   }
@@ -162,6 +248,15 @@ export function ArchiveProductsPage() {
     )
   }
 
+  /** Toggle individual market selection */
+  const toggleMarketSelection = (marketId: number) => {
+    setSelectedMarkets(prev => 
+      prev.includes(marketId) 
+        ? prev.filter(id => id !== marketId)
+        : [...prev, marketId]
+    )
+  }
+
   /** Toggle all products selection */
   const toggleAllProducts = () => {
     if (selectedProducts.length === filteredProducts.length) {
@@ -171,34 +266,60 @@ export function ArchiveProductsPage() {
     }
   }
 
-  /** Bulk restore selected products */
+  /** Toggle all markets selection */
+  const toggleAllMarkets = () => {
+    if (selectedMarkets.length === filteredMarkets.length) {
+      setSelectedMarkets([])
+    } else {
+      setSelectedMarkets(filteredMarkets.map(m => m.id))
+    }
+  }
+
+  /** Bulk restore selected items */
   const handleBulkRestore = async () => {
-    if (selectedProducts.length === 0) {
-      alert('Please select at least one product to restore.')
+    const selectedCount = view === 'products' ? selectedProducts.length : selectedMarkets.length
+    if (selectedCount === 0) {
+      alert(`Please select at least one ${view === 'products' ? 'product' : 'market'} to restore.`)
       return
     }
 
-    setBulkRestoreModal({ open: true, count: selectedProducts.length })
+    setBulkRestoreModal({ open: true, count: selectedCount })
   }
 
   /** Confirm bulk restore operation */
   const confirmBulkRestore = async () => {
     try {
-      await bulkRestoreProducts(selectedProducts, 'ACTIVE')
-      setBulkRestoreModal({ open: false, count: 0 })
-      setSuccessModal({ open: true, message: `Successfully restored ${selectedProducts.length} product(s)!` })
-      setSelectedProducts([])
+      if (view === 'products') {
+        await bulkRestoreProducts(selectedProducts, 'ACTIVE')
+        setBulkRestoreModal({ open: false, count: 0 })
+        setSuccessModal({ open: true, message: `Successfully restored ${selectedProducts.length} product(s)!` })
+        setSelectedProducts([])
 
-      // Refresh data
-      const [productsPage, statsData] = await Promise.all([
-        fetchArchivedProductsPage(page, pageSize),
-        fetchArchiveStats(),
-      ])
-      setProducts(productsPage.content || [])
-      setTotalPages(productsPage.page?.totalPages || 1)
-      setStats(statsData)
+        // Refresh data
+        const [productsPage, statsData] = await Promise.all([
+          fetchArchivedProductsPage(page, pageSize),
+          fetchArchiveStats(),
+        ])
+        setProducts(productsPage.content || [])
+        setTotalPages(productsPage.page?.totalPages || 1)
+        setStats(statsData)
+      } else {
+        await bulkRestoreMarkets(selectedMarkets)
+        setBulkRestoreModal({ open: false, count: 0 })
+        setSuccessModal({ open: true, message: `Successfully restored ${selectedMarkets.length} market(s)!` })
+        setSelectedMarkets([])
+
+        // Refresh data
+        const [marketsPage, statsData] = await Promise.all([
+          fetchArchivedMarketsPage(page, pageSize),
+          fetchMarketArchiveStats(),
+        ])
+        setMarkets(marketsPage.content || [])
+        setTotalPages(marketsPage.page?.totalPages || 1)
+        setMarketStats(statsData)
+      }
     } catch (error) {
-      alert('Failed to restore selected products. Please try again.')
+      alert(`Failed to restore selected ${view === 'products' ? 'products' : 'markets'}. Please try again.`)
       console.error(error)
     }
   }
@@ -210,16 +331,40 @@ export function ArchiveProductsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-[1600px] mx-auto px-2 sm:px-4 md:px-6 pt-2 md:pt-4 pb-4 md:pb-8">
-        {/* Header */}
+        {/* Header with View Toggle */}
         <div className="mb-5 md:mb-6">
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900">Archived Products</h1>
-          <p className="text-xs md:text-sm text-gray-600 mt-1">
-            View and restore previously archived products
-          </p>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-3">Archive Management</h1>
+          
+          {/* View Toggle Buttons */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setView('products')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all ${
+                view === 'products'
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md'
+                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <Package className="w-4 h-4" />
+              Products
+            </button>
+            <button
+              onClick={() => setView('markets')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-all ${
+                view === 'markets'
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md'
+                  : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <MapPinHouse className="w-4 h-4" />
+              Markets
+            </button>
+          </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
+        {/* Stats Grid - Products */}
+        {view === 'products' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
           <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
@@ -271,6 +416,63 @@ export function ArchiveProductsPage() {
             </div>
           </div>
         </div>
+        )}
+
+        {/* Stats Grid - Markets */}
+        {view === 'markets' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-5">
+            <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-purple-100 rounded-lg">
+                    <Archive className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-600">Total Archive</p>
+                    <p className="text-xs text-gray-500">All archived markets</p>
+                  </div>
+                </div>
+              </div>
+              <div className="text-2xl font-bold text-gray-900">
+                {marketStats.totalArchive}
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-blue-100 rounded-lg">
+                    <Calendar className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-600">Archive This Month</p>
+                    <p className="text-xs text-gray-500">Recently archived</p>
+                  </div>
+                </div>
+              </div>
+              <div className="text-2xl font-bold text-gray-900">
+                {marketStats.archiveThisMonth}
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-white to-gray-50 border border-gray-200 rounded-xl p-4 shadow-md hover:shadow-lg transition-shadow duration-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-amber-100 rounded-lg">
+                    <Star className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-600">High Rated</p>
+                    <p className="text-xs text-gray-500">Top rated archived</p>
+                  </div>
+                </div>
+              </div>
+              <div className="text-2xl font-bold text-gray-900">
+                {marketStats.highRated}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Search and Filters */}
         <div className="mb-6">
@@ -280,7 +482,7 @@ export function ArchiveProductsPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search archived products..."
+                placeholder={view === 'products' ? 'Search archived products...' : 'Search archived markets...'}
                 className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 transition-all"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -289,22 +491,36 @@ export function ArchiveProductsPage() {
 
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-2">
-              <select
-                className="px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white cursor-pointer hover:border-gray-300 transition-colors"
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-              >
-                <option value="all">All Categories</option>
-                {categories.map(cat => <option key={cat} value={cat}>{toTitleCase(cat)}</option>)}
-              </select>
-              <select
-                className="px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white cursor-pointer hover:border-gray-300 transition-colors"
-                value={originFilter}
-                onChange={(e) => setOriginFilter(e.target.value)}
-              >
-                <option value="all">All Origins</option>
-                {origins.map(org => <option key={org} value={org}>{org}</option>)}
-              </select>
+              {view === 'products' && (
+                <>
+                  <select
+                    className="px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white cursor-pointer hover:border-gray-300 transition-colors"
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                  >
+                    <option value="all">All Categories</option>
+                    {categories.map(cat => <option key={cat} value={cat}>{toTitleCase(cat)}</option>)}
+                  </select>
+                  <select
+                    className="px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white cursor-pointer hover:border-gray-300 transition-colors"
+                    value={originFilter}
+                    onChange={(e) => setOriginFilter(e.target.value)}
+                  >
+                    <option value="all">All Origins</option>
+                    {origins.map(org => <option key={org} value={org}>{org}</option>)}
+                  </select>
+                </>
+              )}
+              {view === 'markets' && (
+                <select
+                  className="px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white cursor-pointer hover:border-gray-300 transition-colors"
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                >
+                  <option value="all">All Types</option>
+                  {marketTypes.map(type => <option key={type} value={type}>{type.replace('_', ' ')}</option>)}
+                </select>
+              )}
               <button
                 onClick={resetFilters}
                 className="px-3 py-2 text-sm text-gray-600 hover:text-gray-700 hover:bg-gray-50 font-medium rounded-md transition-colors border border-gray-200 flex items-center gap-1.5"
@@ -314,13 +530,13 @@ export function ArchiveProductsPage() {
                 </svg>
                 Reset
               </button>
-              {selectedProducts.length > 0 && (
+              {((view === 'products' && selectedProducts.length > 0) || (view === 'markets' && selectedMarkets.length > 0)) && (
                 <button
                   onClick={handleBulkRestore}
                   className="px-3 py-2 text-sm bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-1.5"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  Restore ({selectedProducts.length})
+                  Restore ({view === 'products' ? selectedProducts.length : selectedMarkets.length})
                 </button>
               )}
             </div>
@@ -328,6 +544,7 @@ export function ArchiveProductsPage() {
         </div>
 
         {/* Products Table (desktop) */}
+        {view === 'products' && (
         <div className="hidden lg:block bg-white border border-gray-200 rounded-xl overflow-hidden shadow-md">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -339,7 +556,7 @@ export function ArchiveProductsPage() {
                         type="checkbox"
                         checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
                         onChange={toggleAllProducts}
-                        className="w-3.5 h-3.5 text-teal-600 bg-white border-gray-300 rounded cursor-pointer focus:ring-2 focus:ring-teal-500 focus:ring-offset-0"
+                        className="w-3.5 h-3.5 text-teal-600 bg-white hover:bg-white border-gray-300 rounded cursor-pointer focus:ring-2 focus:ring-teal-500 focus:ring-offset-0"
                       />
                     </div>
                   </th>
@@ -367,7 +584,7 @@ export function ArchiveProductsPage() {
                           type="checkbox"
                           checked={selectedProducts.includes(product.id)}
                           onChange={() => toggleProductSelection(product.id)}
-                          className="w-3.5 h-3.5 text-teal-600 bg-white border-gray-300 rounded cursor-pointer focus:ring-2 focus:ring-teal-500 focus:ring-offset-0"
+                          className="w-3.5 h-3.5 text-teal-600 bg-white hover:bg-white border-gray-300 rounded cursor-pointer focus:ring-2 focus:ring-teal-500 focus:ring-offset-0"
                         />
                       </div>
                     </td>
@@ -438,8 +655,10 @@ export function ArchiveProductsPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Products Card View (mobile & tablet) */}
+        {view === 'products' && (
         <div className="block lg:hidden space-y-4">
           {filteredProducts.length === 0 && (
             <div className="py-8 text-center text-gray-500">
@@ -455,7 +674,7 @@ export function ArchiveProductsPage() {
                   type="checkbox"
                   checked={selectedProducts.includes(product.id)}
                   onChange={() => toggleProductSelection(product.id)}
-                  className="w-4 h-4 text-teal-600 bg-white border-gray-300 rounded cursor-pointer focus:ring-2 focus:ring-teal-500 focus:ring-offset-0 mt-1"
+                  className="w-4 h-4 text-teal-600 bg-white hover:bg-white border-gray-300 rounded cursor-pointer focus:ring-2 focus:ring-teal-500 focus:ring-offset-0 mt-1"
                 />
                 <div className="flex-1 min-w-0">
                   <h4 className="text-base font-bold text-gray-900 mb-1">{product.productName}</h4>
@@ -523,6 +742,181 @@ export function ArchiveProductsPage() {
             </div>
           )}
         </div>
+        )}
+
+        {/* Markets Table (desktop) */}
+        {view === 'markets' && (
+        <div className="hidden lg:block bg-white border border-gray-200 rounded-xl overflow-hidden shadow-md">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="text-center py-2.5 px-3 w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectedMarkets.length === filteredMarkets.length && filteredMarkets.length > 0}
+                      onChange={toggleAllMarkets}
+                      className="w-4 h-4 text-teal-600 bg-white hover:bg-white border-gray-300 rounded cursor-pointer focus:ring-2 focus:ring-teal-500"
+                    />
+                  </th>
+                  <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-2.5 px-3">Market Location</th>
+                  <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-2.5 px-3">Type</th>
+                  <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-2.5 px-3">Rating</th>
+                  <th className="text-left text-xs font-semibold text-gray-700 uppercase tracking-wider py-2.5 px-3">Archived Date</th>
+                  <th className="text-center text-xs font-semibold text-gray-700 uppercase tracking-wider py-2.5 px-3 w-32">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredMarkets.map((market) => (
+                  <tr key={market.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="text-center py-2.5 px-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedMarkets.includes(market.id)}
+                        onChange={() => toggleMarketSelection(market.id)}
+                        className="w-4 h-4 text-teal-600 bg-white hover:bg-white border-gray-300 rounded cursor-pointer focus:ring-2 focus:ring-teal-500"
+                      />
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <p className="text-sm font-semibold text-gray-900">{market.marketLocation}</p>
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded font-medium">
+                        {market.type.replace('_', ' ')}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <div className="flex items-center gap-1">
+                        <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                        <span className="text-sm font-medium text-gray-900">{market.ratings.toFixed(2)}</span>
+                      </div>
+                    </td>
+                    <td className="py-2.5 px-3">
+                      <p className="text-sm text-gray-600">{formatDate(market.archivedDate)}</p>
+                    </td>
+                    <td className="text-center py-2.5 px-3">
+                      <button
+                        onClick={() => handleRestore(market.id, market.marketLocation)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Restore</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {filteredMarkets.length === 0 && (
+            <div className="py-12 text-center">
+              <Archive className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-sm text-gray-500">No archived markets found</p>
+            </div>
+          )}
+          {/* Pagination Controls */}
+          <div className="flex items-center justify-between px-4 py-2 border-t border-gray-200">
+            <div className="text-xs text-gray-500">
+              Showing <span className="font-medium">{page * pageSize + 1}</span> to <span className="font-medium">{Math.min((page + 1) * pageSize, filteredMarkets.length)}</span> of <span className="font-medium">{filteredMarkets.length}</span> results
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" 
+                onClick={() => setPage((p) => Math.max(0, p - 1))} 
+                disabled={page === 0}
+              >
+                Previous
+              </button>
+              <span className="text-sm text-gray-600">Page {page + 1} of {totalPages}</span>
+              <button 
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" 
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} 
+                disabled={page >= totalPages - 1}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+        )}
+
+        {/* Markets Card View (mobile & tablet) */}
+        {view === 'markets' && (
+        <div className="block lg:hidden space-y-4">
+          {filteredMarkets.length === 0 && (
+            <div className="py-8 text-center text-gray-500">
+              <Archive className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-sm">No archived markets found</p>
+            </div>
+          )}
+          {filteredMarkets.map((market) => (
+            <div key={market.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+              {/* Header with checkbox */}
+              <div className="flex items-start gap-3 mb-3">
+                <input
+                  type="checkbox"
+                  checked={selectedMarkets.includes(market.id)}
+                  onChange={() => toggleMarketSelection(market.id)}
+                  className="w-4 h-4 text-teal-600 bg-white hover:bg-white border-gray-300 rounded cursor-pointer focus:ring-2 focus:ring-teal-500 focus:ring-offset-0 mt-1"
+                />
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-bold text-gray-900 truncate">{market.marketLocation}</h3>
+                  <p className="text-xs text-gray-500 mt-1">{market.type.replace('_', ' ')}</p>
+                </div>
+                <span className="text-xs px-2.5 py-1 rounded font-semibold whitespace-nowrap bg-orange-50 text-orange-700">
+                  Archived
+                </span>
+              </div>
+
+              {/* Key Info */}
+              <div className="grid grid-cols-2 gap-3 py-3 border-t border-b border-gray-100">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Rating</p>
+                  <div className="flex items-center gap-1">
+                    <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                    <p className="text-sm font-medium text-gray-900">{market.ratings.toFixed(2)}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Archived Date</p>
+                  <p className="text-sm font-medium text-gray-900">{formatDate(market.archivedDate)}</p>
+                </div>
+              </div>
+
+              {/* Action Button */}
+              <div className="pt-3 border-t border-gray-100">
+                <button 
+                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-sm bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                  onClick={() => handleRestore(market.id, market.marketLocation)}
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Restore Market</span>
+                </button>
+              </div>
+            </div>
+          ))}
+          {/* Pagination Controls (mobile) */}
+          {filteredMarkets.length > 0 && (
+            <div className="flex justify-between items-center py-4">
+              <button 
+                className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium" 
+                onClick={() => setPage((p) => Math.max(0, p - 1))} 
+                disabled={page === 0}
+              >
+                Previous
+              </button>
+              <span className="text-sm font-medium text-gray-700">Page {page + 1} of {totalPages}</span>
+              <button 
+                className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium" 
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} 
+                disabled={page >= totalPages - 1}
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
+        )}
       </div>
 
       {/* Single Restore Modal */}
@@ -531,9 +925,9 @@ export function ArchiveProductsPage() {
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-5 animate-fadeIn">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-gray-900">Restore Product</h2>
+              <h2 className="text-base font-semibold text-gray-900">Restore {view === 'products' ? 'Product' : 'Market'}</h2>
               <button
-                onClick={() => setRestoreModal({ open: false, productId: null, productName: '' })}
+                onClick={() => setRestoreModal({ open: false, id: null, name: '' })}
                 className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -550,10 +944,10 @@ export function ArchiveProductsPage() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm md:text-base font-semibold text-teal-900">
-                    Restore "{restoreModal.productName}"?
+                    Restore "{restoreModal.name}"?
                   </p>
                   <p className="text-xs md:text-sm text-teal-700 mt-1">
-                    This product will be moved back to active status.
+                    This {view === 'products' ? 'product' : 'market'} will be moved back to active status.
                   </p>
                 </div>
               </div>
@@ -564,11 +958,11 @@ export function ArchiveProductsPage() {
                 <ul className="space-y-1.5 text-xs text-blue-800">
                   <li className="flex items-start gap-2">
                     <span className="text-blue-600 mt-0.5">•</span>
-                    <span>Product will be visible in the active catalog</span>
+                    <span>{view === 'products' ? 'Product' : 'Market'} will be visible in the active catalog</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-blue-600 mt-0.5">•</span>
-                    <span>System will resume price tracking</span>
+                    <span>System will resume {view === 'products' ? 'price' : 'data'} tracking</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-blue-600 mt-0.5">•</span>
@@ -576,13 +970,13 @@ export function ArchiveProductsPage() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-blue-600 mt-0.5">•</span>
-                    <span>Product becomes available for customers</span>
+                    <span>{view === 'products' ? 'Product' : 'Market'} becomes available for {view === 'products' ? 'customers' : 'operations'}</span>
                   </li>
                 </ul>
               </div>
 
               <p className="text-xs text-gray-600">
-                Please confirm that you want to proceed with restoring this product.
+                Please confirm that you want to proceed with restoring this {view === 'products' ? 'product' : 'market'}.
               </p>
             </div>
 
@@ -590,7 +984,7 @@ export function ArchiveProductsPage() {
             <div className="flex gap-2 mt-5">
               <button
                 className="flex-1 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold transition-colors border border-gray-200"
-                onClick={() => setRestoreModal({ open: false, productId: null, productName: '' })}
+                onClick={() => setRestoreModal({ open: false, id: null, name: '' })}
               >
                 Cancel
               </button>
@@ -599,7 +993,7 @@ export function ArchiveProductsPage() {
                 onClick={confirmRestore}
               >
                 <RotateCcw className="w-4 h-4" />
-                Restore Product
+                Restore {view === 'products' ? 'Product' : 'Market'}
               </button>
             </div>
           </div>
@@ -612,7 +1006,7 @@ export function ArchiveProductsPage() {
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-5 animate-fadeIn">
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-gray-900">Restore Selected Products</h2>
+              <h2 className="text-base font-semibold text-gray-900">Restore Selected {view === 'products' ? 'Products' : 'Markets'}</h2>
               <button
                 onClick={() => setBulkRestoreModal({ open: false, count: 0 })}
                 className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
@@ -631,10 +1025,10 @@ export function ArchiveProductsPage() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm md:text-base font-semibold text-teal-900">
-                    You are about to restore {bulkRestoreModal.count} product{bulkRestoreModal.count > 1 ? 's' : ''}
+                    You are about to restore {bulkRestoreModal.count} {view === 'products' ? 'product' : 'market'}{bulkRestoreModal.count > 1 ? 's' : ''}
                   </p>
                   <p className="text-xs md:text-sm text-teal-700 mt-1">
-                    These products will be moved back to active status.
+                    {view === 'products' ? 'These products' : 'These markets'} will be moved back to active status.
                   </p>
                 </div>
               </div>
@@ -645,11 +1039,11 @@ export function ArchiveProductsPage() {
                 <ul className="space-y-1.5 text-xs text-blue-800">
                   <li className="flex items-start gap-2">
                     <span className="text-blue-600 mt-0.5">•</span>
-                    <span>Products will be visible in the active catalog</span>
+                    <span>{view === 'products' ? 'Products' : 'Markets'} will be visible in the active catalog</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-blue-600 mt-0.5">•</span>
-                    <span>System will resume price tracking</span>
+                    <span>System will resume {view === 'products' ? 'price' : 'data'} tracking</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-blue-600 mt-0.5">•</span>
@@ -657,13 +1051,13 @@ export function ArchiveProductsPage() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-blue-600 mt-0.5">•</span>
-                    <span>Products become available for customers</span>
+                    <span>{view === 'products' ? 'Products' : 'Markets'} become available for {view === 'products' ? 'customers' : 'operations'}</span>
                   </li>
                 </ul>
               </div>
 
               <p className="text-xs text-gray-600">
-                Please confirm that you want to proceed with restoring these products.
+                Please confirm that you want to proceed with restoring these {view === 'products' ? 'products' : 'markets'}.
               </p>
             </div>
 
@@ -680,7 +1074,7 @@ export function ArchiveProductsPage() {
                 onClick={confirmBulkRestore}
               >
                 <RotateCcw className="w-4 h-4" />
-                Restore {bulkRestoreModal.count} Product{bulkRestoreModal.count > 1 ? 's' : ''}
+                Restore {bulkRestoreModal.count} {view === 'products' ? 'Product' : 'Market'}{bulkRestoreModal.count > 1 ? 's' : ''}
               </button>
             </div>
           </div>

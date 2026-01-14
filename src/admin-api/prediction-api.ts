@@ -28,15 +28,18 @@ export interface PriceCalibrationDTO {
 }
 
 export interface MarketPrediction {
+  predictionId?: number
   marketId: number
   marketName: string
   marketLocation: string
   currentPrice: number
-  forecastPrice: number
-  trendPercentage: number
-  confidenceScore: number
+  forecastPrice?: number
+  trendPercentage?: number
+  confidenceScore?: number
   status: string
   dataPoints: number
+  confidenceLevel?: string
+  trendDirection?: string
 }
 
 export interface ProductCentricPredictionDTO {
