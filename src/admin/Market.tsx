@@ -1,4 +1,4 @@
-
+  
 
 /**
  * Markets Page Component
@@ -142,10 +142,13 @@ export function Market() {
   const [selectedMarkets, setSelectedMarkets] = useState<number[]>([])
   
   // Modals
-  const [editModal, setEditModal] = useState<{ open: boolean; market?: MarketDisplayDTO }>({ open: false })
+  const [editModal, setEditModal] = useState<{ open: boolean; market?: MarketDisplayDTO; loading?: boolean }>({ open: false, loading: false })
   const [viewModal, setViewModal] = useState<{ open: boolean; market?: MarketDisplayDTO; loading?: boolean; error?: string }>({ open: false, loading: false })
   const [bulkArchiveModal, setBulkArchiveModal] = useState<{ open: boolean; count: number }>({ open: false, count: 0 })
   const [successModal, setSuccessModal] = useState<{ open: boolean; message: string }>({ open: false, message: '' })
+  
+  // Loading state for action buttons
+  const [loadingMarketId, setLoadingMarketId] = useState<number | null>(null)
   
   const [editLocation, setEditLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [mapInteractionEnabled, setMapInteractionEnabled] = useState(true)
@@ -601,10 +604,12 @@ export function Market() {
                     <td className="py-4 px-3 md:px-4">  
                       <div className="flex items-center justify-center gap-2">
                         <button 
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={loadingMarketId !== null}
                           onClick={async () => {
                             console.log('Fetching market details for ID:', market.id)
                             
+                            setLoadingMarketId(market.id)
                             // Open modal with loading state
                             setViewModal({ 
                               open: true, 
@@ -630,28 +635,55 @@ export function Market() {
                                 loading: false,
                                 error: 'Failed to load market details. Please try again.'
                               })
+                            } finally {
+                              setLoadingMarketId(null)
                             }
                           }}
                         >
-                          <Eye className="w-4 h-4" />
-                          <span>View</span>
+                          {loadingMarketId === market.id ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                              <span>Loading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="w-4 h-4" />
+                              <span>View</span>
+                            </>
+                          )}
                         </button>
                         <button 
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-colors border border-gray-200"
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-colors border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={loadingMarketId !== null}
                           onClick={async () => {
+                            setLoadingMarketId(market.id)
+                            setEditModal({ open: true, loading: true })
+                            
                             try {
                               // Fetch full details from /view endpoint
                               const fullDetails = await fetchMarketDetails(market.id)
-                              setEditModal({ open: true, market: fullDetails })
+                              setEditModal({ open: true, market: fullDetails, loading: false })
                               setEditRating(fullDetails.ratings || 0)
                             } catch (error) {
                               console.error('Failed to fetch market details:', error)
+                              setEditModal({ open: false, loading: false })
                               alert('Failed to load market details. Please try again.')
+                            } finally {
+                              setLoadingMarketId(null)
                             }
                           }}
                         >
-                          <Pencil className="w-4 h-4" />
-                          <span>Edit</span>
+                          {loadingMarketId === market.id ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-400 border-t-transparent"></div>
+                              <span>Loading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Pencil className="w-4 h-4" />
+                              <span>Edit</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     </td>
@@ -765,10 +797,12 @@ export function Market() {
               {/* Action Buttons */}
               <div className="flex items-center gap-2 pt-3 border-t border-gray-100">
                 <button 
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all duration-200 font-semibold shadow-sm hover:shadow-md"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-lg transition-all duration-200 font-semibold shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={loadingMarketId !== null}
                   onClick={async () => {
                     console.log('Fetching market details for ID:', market.id)
                     
+                    setLoadingMarketId(market.id)
                     // Open modal with loading state
                     setViewModal({ 
                       open: true, 
@@ -794,28 +828,55 @@ export function Market() {
                         loading: false,
                         error: 'Failed to load market details. Please try again.'
                       })
+                    } finally {
+                      setLoadingMarketId(null)
                     }
                   }}
                 >
-                  <Eye className="w-4 h-4" />
-                  <span>View</span>
+                  {loadingMarketId === market.id ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      <span>Loading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-4 h-4" />
+                      <span>View</span>
+                    </>
+                  )}
                 </button>
                 <button 
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-semibold border border-gray-200"
+                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors font-semibold border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={loadingMarketId !== null}
                   onClick={async () => {
+                    setLoadingMarketId(market.id)
+                    setEditModal({ open: true, loading: true })
+                    
                     try {
                       // Fetch full details from /view endpoint
                       const fullDetails = await fetchMarketDetails(market.id)
-                      setEditModal({ open: true, market: fullDetails })
+                      setEditModal({ open: true, market: fullDetails, loading: false })
                       setEditRating(fullDetails.ratings || 0)
                     } catch (error) {
                       console.error('Failed to fetch market details:', error)
+                      setEditModal({ open: false, loading: false })
                       alert('Failed to load market details. Please try again.')
+                    } finally {
+                      setLoadingMarketId(null)
                     }
                   }}
                 >
-                  <Pencil className="w-4 h-4" />
-                  <span>Edit</span>
+                  {loadingMarketId === market.id ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-400 border-t-transparent"></div>
+                      <span>Loading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Pencil className="w-4 h-4" />
+                      <span>Edit</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -844,19 +905,37 @@ export function Market() {
       </div>
 
     {/* Edit Modal */}
-    {editModal.open && editModal.market && (
+    {editModal.open && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-3 md:p-4" onClick={() => {
-        setEditModal({ open: false })
-        setEditLocation(null)
-        setMapInteractionEnabled(true)
-        setLocationSearch('')
-        setSearchResults([])
-        setSearchCenter(null)
-        setMapLayer('street')
-        setEditRating(0)
-        setHoverRating(0)
+        if (!editModal.loading) {
+          setEditModal({ open: false, loading: false })
+          setEditLocation(null)
+          setMapInteractionEnabled(true)
+          setLocationSearch('')
+          setSearchResults([])
+          setSearchCenter(null)
+          setMapLayer('street')
+          setEditRating(0)
+          setHoverRating(0)
+        }
       }}>
         <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full p-4 md:p-6 animate-fadeIn max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          
+          {/* Loading State */}
+          {editModal.loading && (
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="relative">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mb-4"></div>
+                <div className="absolute inset-0 animate-ping rounded-full h-16 w-16 border-4 border-blue-300 opacity-20"></div>
+              </div>
+              <p className="text-base font-semibold text-gray-900 mb-1 animate-pulse">Loading Market Data...</p>
+              <p className="text-sm text-gray-500">Please wait while we fetch the details</p>
+            </div>
+          )}
+          
+          {/* Content State */}
+          {!editModal.loading && editModal.market && (
+            <>
           {/* Header */}
           <div className="flex items-center justify-between mb-4 md:mb-6">
             <div className="flex items-center gap-2">
@@ -865,7 +944,7 @@ export function Market() {
             </div>
             <button
               onClick={() => {
-                setEditModal({ open: false })
+                setEditModal({ open: false, loading: false })
                 setEditLocation(null)
                 setMapInteractionEnabled(true)
                 setLocationSearch('')
@@ -1324,7 +1403,7 @@ export function Market() {
                 type="button"
                 className="flex-1 px-4 md:px-5 py-2.5 md:py-3 rounded-lg border border-gray-200 bg-gray-100 text-gray-700 text-sm md:text-base font-semibold hover:bg-gray-200 transition-colors"
                 onClick={() => {
-                  setEditModal({ open: false })
+                  setEditModal({ open: false, loading: false })
                   setEditLocation(null)
                   setMapInteractionEnabled(true)
                   setLocationSearch('')
@@ -1354,6 +1433,8 @@ export function Market() {
               </button>
             </div>
           </form>
+            </>
+          )}
         </div>
       </div>
     )}
