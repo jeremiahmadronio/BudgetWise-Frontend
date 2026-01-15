@@ -49,6 +49,36 @@ export interface MarketArchiveStatsDTO {
   highRated: number
 }
 
+// ============================================================================
+// Type Definitions - Dietary Tags
+// ============================================================================
+
+/** Dietary tag archive statistics */
+export interface DietaryTagArchiveStatsDTO {
+  totalArchived: number
+  archivedThisMonth: number
+  unusedTagsCount: number
+}
+
+/** Archived dietary tag display information */
+export interface ArchivedDietaryTagDTO {
+  id: number
+  tagName: string
+  description: string
+  archivedAt: string
+}
+
+/** Paginated archived dietary tags response */
+export interface ArchivedDietaryTagsPage {
+  content: ArchivedDietaryTagDTO[]
+  page: {
+    size: number
+    number: number
+    totalElements: number
+    totalPages: number
+  }
+}
+
 /** Archived market display information */
 export interface ArchivedMarketDTO {
   id: number
@@ -177,4 +207,45 @@ export async function bulkRestoreMarkets(ids: number[]): Promise<void> {
     body: JSON.stringify(ids),
   })
   if (!res.ok) throw new Error('Failed to bulk restore markets')
+}
+
+// ============================================================================
+// Fetch Operations - Dietary Tags
+// ============================================================================
+
+/**
+ * Fetch dietary tag archive statistics
+ */
+export async function fetchDietaryTagArchiveStats(): Promise<DietaryTagArchiveStatsDTO> {
+  const res = await fetch(`${API_BASE}/archiveTag/stats`)
+  if (!res.ok) throw new Error('Failed to fetch dietary tag archive stats')
+  return res.json()
+}
+
+/**
+ * Fetch paginated archived dietary tags list
+ * @param page - Page number (0-indexed)
+ * @param size - Items per page
+ */
+export async function fetchArchivedDietaryTagsPage(page = 0, size = 10): Promise<ArchivedDietaryTagsPage> {
+  const res = await fetch(`${API_BASE}/archiveTag/archive?page=${page}&size=${size}`)
+  if (!res.ok) throw new Error('Failed to fetch archived dietary tags')
+  return res.json()
+}
+
+// ============================================================================
+// Update Operations - Dietary Tags
+// ============================================================================
+
+/**
+ * Restore archived dietary tags by setting status to ACTIVE
+ * @param ids - Array of dietary tag IDs to restore
+ */
+export async function restoreDietaryTags(ids: number[]): Promise<void> {
+  const res = await fetch(`${API_BASE}/archiveTag/status?status=ACTIVE`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(ids),
+  })
+  if (!res.ok) throw new Error('Failed to restore dietary tags')
 }
