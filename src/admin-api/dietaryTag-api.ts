@@ -57,6 +57,14 @@ export interface QualityIssue {
   lastUpdated: string
 }
 
+export interface TagCoverageDTO {
+  category: string
+  taggedCount: number
+  totalCount: number
+  coveragePercentage: number
+  status: 'Needs Work' | 'Good' | 'Excellent'
+}
+
 // ============================================================================
 // API Functions
 // ============================================================================
@@ -245,4 +253,22 @@ export async function archiveDietaryTags(
   if (!response.ok) {
     throw new Error('Failed to archive dietary tags')
   }
+}
+
+/**
+ * Fetch tag coverage by category
+ */
+export async function fetchTagCoverage(): Promise<TagCoverageDTO[]> {
+  const response = await fetch(`${BASE_URL}/coverage`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch tag coverage')
+  }
+
+  return response.json()
 }
