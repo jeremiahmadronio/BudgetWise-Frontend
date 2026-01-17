@@ -320,14 +320,7 @@ export function ReportManagement() {
 
       {/* Filter Button */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
-        >
-          <Filter className="w-4 h-4" />
-          Filter
-        </button>
-
+       
         {/* Active Filters Display */}
         {(activeStatus || activeDateFrom || activeDateTo) && (
           <div className="flex flex-wrap gap-2">
@@ -422,14 +415,14 @@ export function ReportManagement() {
             />
           </div>
         </div>
-
         <div className="flex gap-3">
           <button
-            onClick={handleApplyFilters}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
-          >
-            Apply Filters
-          </button>
+          onClick={handleApplyFilters}
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+        >
+          <Filter className="w-4 h-4" />
+          Filter
+        </button>
           <button
             onClick={handleResetFilters}
             className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition-colors"
@@ -440,9 +433,9 @@ export function ReportManagement() {
         </div>
       )}
 
-      {/* Upload History Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="p-6 border-b border-gray-200">
+      {/* Upload History */}
+      <div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Upload History</h2>
           <p className="text-sm text-gray-600 mt-1">
             Showing {paginatedReports.length} of {filteredReports.length} reports
@@ -450,123 +443,97 @@ export function ReportManagement() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12">
+            <div className="flex items-center justify-center">
+              <RefreshCw className="w-8 h-8 text-blue-600 animate-spin" />
+            </div>
           </div>
         ) : paginatedReports.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <FileText className="w-16 h-16 text-gray-400 mb-4" />
-            <p className="text-gray-600 font-medium">No reports found</p>
-            <p className="text-sm text-gray-500 mt-1">
-              {activeStatus || activeDateFrom || activeDateTo
-                ? 'Try adjusting your filters'
-                : 'Upload or trigger scraping to get started'}
-            </p>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12">
+            <div className="flex flex-col items-center justify-center">
+              <FileText className="w-16 h-16 text-gray-400 mb-4" />
+              <p className="text-gray-600 font-medium">No reports found</p>
+              <p className="text-sm text-gray-500 mt-1">
+                {activeStatus || activeDateFrom || activeDateTo
+                  ? 'Try adjusting your filters'
+                  : 'Upload or trigger scraping to get started'}
+              </p>
+            </div>
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Date Reported
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Products
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Markets
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Duration
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Link
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                      Status
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {paginatedReports.map((report) => (
-                    <tr
-                      key={report.id}
-                      className="hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm font-medium text-gray-900">
-                          RP-{report.id.toString().padStart(5, '0')}
+            {/* Mobile/Tablet Card View */}
+            <div className="block lg:hidden space-y-4">
+              {paginatedReports.map((report) => (
+                <div
+                  key={report.id}
+                  className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  {/* Header with ID and Status */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900">
+                        RP-{report.id.toString().padStart(5, '0')}
+                      </h3>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                        <span className="text-xs text-gray-600">
+                          {formatDate(report.dateReported)}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-900">
-                            {formatDate(report.dateReported)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <Package className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-900">
-                            {report.totalProducts}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-900">
-                            {report.totalMarkets}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-900">
-                            {formatDuration(report.durationMs)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {report.url ? (
-                          <a
-                            href={report.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
-                          >
-                            {report.url}
-                          </a>
-                        ) : (
-                          <span className="text-sm text-gray-400">No link</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(report.status)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </div>
+                    </div>
+                    {getStatusBadge(report.status)}
+                  </div>
 
-            {/* Pagination */}
-            <div className="px-6 py-4 border-t border-gray-200">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-600">
-                  Showing {page * pageSize + 1} to{' '}
-                  {Math.min((page + 1) * pageSize, filteredReports.length)} of{' '}
-                  {filteredReports.length} results
-                </p>
-                <div className="flex gap-2">
+                  {/* Info Grid */}
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Package className="w-3.5 h-3.5 text-gray-400" />
+                        <span className="text-xs text-gray-500">Products</span>
+                      </div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {report.totalProducts}
+                      </p>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                        <span className="text-xs text-gray-500">Markets</span>
+                      </div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {report.totalMarkets}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Footer with Duration and Link */}
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-gray-400" />
+                      <span className="text-xs text-gray-600">
+                        {formatDuration(report.durationMs)}
+                      </span>
+                    </div>
+                    {report.url ? (
+                      <a
+                        href={report.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:text-blue-700 hover:underline truncate max-w-[150px]"
+                      >
+                        {report.url}
+                      </a>
+                    ) : (
+                      <span className="text-xs text-gray-400">No link</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* Mobile Pagination */}
+              {filteredReports.length > 0 && (
+                <div className="flex justify-between items-center py-4">
                   <button
                     onClick={() => setPage(Math.max(0, page - 1))}
                     disabled={page === 0}
@@ -584,6 +551,132 @@ export function ReportManagement() {
                   >
                     Next
                   </button>
+                </div>
+              )}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden lg:block bg-white rounded-lg shadow-sm border border-gray-200">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        ID
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Date Reported
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Products
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Markets
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Duration
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Link
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {paginatedReports.map((report) => (
+                      <tr
+                        key={report.id}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="text-sm font-medium text-gray-900">
+                            RP-{report.id.toString().padStart(5, '0')}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm text-gray-900">
+                              {formatDate(report.dateReported)}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <Package className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm text-gray-900">
+                              {report.totalProducts}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm text-gray-900">
+                              {report.totalMarkets}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm text-gray-900">
+                              {formatDuration(report.durationMs)}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {report.url ? (
+                            <a
+                              href={report.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+                            >
+                              {report.url}
+                            </a>
+                          ) : (
+                            <span className="text-sm text-gray-400">No link</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {getStatusBadge(report.status)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Desktop Pagination */}
+              <div className="px-6 py-4 border-t border-gray-200">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-gray-600">
+                    Showing {page * pageSize + 1} to{' '}
+                    {Math.min((page + 1) * pageSize, filteredReports.length)} of{' '}
+                    {filteredReports.length} results
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setPage(Math.max(0, page - 1))}
+                      disabled={page === 0}
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Previous
+                    </button>
+                    <span className="px-3 py-1.5 text-sm text-gray-700">
+                      Page {page + 1} of {Math.max(1, totalFilteredPages)}
+                    </span>
+                    <button
+                      onClick={() => setPage(Math.min(totalFilteredPages - 1, page + 1))}
+                      disabled={page >= totalFilteredPages - 1}
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
