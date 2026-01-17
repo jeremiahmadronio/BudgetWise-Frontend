@@ -15,6 +15,7 @@ import { Orders } from './admin/Orders';
 import { Settings } from './admin/Settings';
 import { Prediction } from './admin/Prediction';
 import { DietaryTag } from './admin/DietaryTag';
+import { ReportManagement } from './admin/ReportManagement';
 // User pages
 import { UserDashboard } from './user/Dashboard';
 import { UserAnalytics } from './user/Analytics';
@@ -49,6 +50,7 @@ function App() {
           <Route path="archive-products" element={<ArchiveProductsPage />} />
           <Route path="predictions" element={<Prediction />} />
           <Route path="dietary-tags" element={<DietaryTag />} />  
+          <Route path="report-management" element={<ReportManagement />} />
 
         </Route>
       </Routes>

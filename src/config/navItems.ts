@@ -7,7 +7,8 @@ import {
   Settings,
   MapPinHouse,
   Archive,
-  Leaf
+  Leaf,
+  FileText 
 } from 'lucide-react'
 
 export const userNavItems = [
@@ -28,6 +29,7 @@ export const adminNavItems = [
    { label: 'Predictions', path: '/admin/predictions', icon: BarChart3 },
    { label: 'Dietary Tags', path: '/admin/dietary-tags', icon: Leaf },
   { label: 'Archive', path: '/admin/archive-products', icon: Archive },
+  { label: 'Report Management', path: '/admin/report-management', icon: FileText },
   { label: 'Users', path: '/admin/users', icon: Users },
   
   { label: 'Settings', path: '/admin/settings', icon: Settings },

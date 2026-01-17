@@ -1580,7 +1580,7 @@ function TagOptionsView({
   onSearchInputChange,
   onApplyFilters,
   onResetFilters,
-  onPageChange,
+  
   onToggleTag,
   onToggleAll,
   onEdit,
@@ -1823,6 +1823,65 @@ function TagOptionsView({
             </button>
           </div>
         ))}
+      </div>
+
+      {/* Desktop Table View (lg and above) */}
+      <div className="hidden lg:block bg-white border border-gray-200 rounded-xl overflow-hidden shadow-md">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="w-12 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <input
+                    type="checkbox"
+                    checked={selectedTags.length === filteredTags.length && filteredTags.length > 0}
+                    onChange={onToggleAll}
+                    className="rounded border-gray-300 text-blue-600 outline-none"
+                  />
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tag Name</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Updated</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {paginatedTags.map((tag) => (
+                <tr key={tag.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={selectedTags.includes(tag.id)}
+                      onChange={() => onToggleTag(tag.id)}
+                      className="rounded border-gray-300 text-blue-600 outline-none"
+                    />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    DT-{tag.id.toString().padStart(4, '0')}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">{tag.tagName}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-600">{tag.description || 'No description'}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-600">{formatDate(tag.updatedAt)}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
+                      onClick={() => onEdit(tag)}
+                      className="text-blue-600 hover:text-blue-900 transition-colors"
+                    >
+                      Edit
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )
