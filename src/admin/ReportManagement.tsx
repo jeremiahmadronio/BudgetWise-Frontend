@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react'
 import {
   Upload,
   Play,
-  Search,
+  
   Filter,
   X,
   Calendar,
@@ -18,7 +18,7 @@ import {
   AlertCircle,
   FileText,
   RefreshCw,
-  ExternalLink
+  
 } from 'lucide-react'
 import {
   type PriceReport,
@@ -42,7 +42,7 @@ export function ReportManagement() {
   const pageSize = 10
 
   // Filter states
-  const [showFilters, setShowFilters] = useState(true)
+  const [showFilters] = useState(true)
   const [statusFilter, setStatusFilter] = useState('')
   const [activeStatus, setActiveStatus] = useState('')
   const [dateFromFilter, setDateFromFilter] = useState('')

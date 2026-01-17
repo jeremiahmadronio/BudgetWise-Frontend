@@ -21,6 +21,10 @@ import { UserDashboard } from './user/Dashboard';
 import { UserAnalytics } from './user/Analytics';
 import { UserProfile } from './user/Profile';
 import { UserSettings } from './user/Settings';
+//authentication
+import { Login } from './authentication/Login';  
+import { AuthCallback } from './authentication/AuthCallback';
+import {Signup} from './authentication/Signup';
 
 function App() {
   return <>
@@ -29,7 +33,7 @@ function App() {
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
         {/* User Layout Routes */}
-        <Route element={<MainLayout />}>
+        <Route  element={<MainLayout />}>
           <Route path="/dashboard" element={<UserDashboard />} />
           <Route path="/analytics" element={<UserAnalytics />} />
           <Route path="/profile" element={<UserProfile />} />
@@ -53,6 +57,10 @@ function App() {
           <Route path="report-management" element={<ReportManagement />} />
 
         </Route>
+        {/* Authentication Routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/signup" element={<Signup />} />
       </Routes>
     </>
 }
