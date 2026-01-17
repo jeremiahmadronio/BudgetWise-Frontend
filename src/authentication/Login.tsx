@@ -19,9 +19,16 @@ export function Login() {
     try {
       const result = await loginWithCredentials(username, password)
       console.log('Login successful:', result)
+      
+      // Redirect based on role
+      if (result.role === 'USER') {
+        window.location.href = '/dashboard'
+      } else if (result.role === 'ADMIN') {
+        window.location.href = '/admin/dashboard'
+      }
     } catch (error: any) {
       console.error('Login failed:', error)
-      setError(error.response?.data?.message || 'Invalid email or password. Please try again.')
+      setError(error.message || 'Invalid email or password. Please try again.')
     } finally {
       setLoading(false)
     }

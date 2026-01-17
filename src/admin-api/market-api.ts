@@ -3,7 +3,7 @@
  * Handles all market-related API operations
  */
 
-const API_BASE_URL = 'http://localhost:8080/api/v1/markets'
+import { api } from '../utils/apiClient'
 
 // ============================================================================
 // Type Definitions
@@ -59,41 +59,21 @@ export async function fetchMarketsPage(
   page: number = 0,
   size: number = 10
 ): Promise<MarketsPage> {
-  const response = await fetch(
-    `${API_BASE_URL}/displayMarkets?page=${page}&size=${size}`
-  )
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch markets')
-  }
-  
-  return response.json()
+  return api.get(`/api/v1/admin/markets/displayMarkets?page=${page}&size=${size}`)
 }
 
 /**
  * Fetch market statistics
  */
 export async function fetchMarketStats(): Promise<MarketStatsDTO> {
-  const response = await fetch(`${API_BASE_URL}/stats`)
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch market stats')
-  }
-  
-  return response.json()
+  return api.get('/api/v1/admin/markets/stats')
 }
 
 /**
  * Fetch full market details by ID
  */
 export async function fetchMarketDetails(marketId: number): Promise<MarketDisplayDTO> {
-  const response = await fetch(`${API_BASE_URL}/view/${marketId}`)
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch market details')
-  }
-  
-  return response.json()
+  return api.get(`/api/v1/admin/markets/view/${marketId}`)
 }
 
 /**
@@ -103,19 +83,7 @@ export async function updateMarketStatus(
   marketId: number,
   status: 'ACTIVE' | 'INACTIVE'
 ): Promise<void> {
-  const response = await fetch(
-    `${API_BASE_URL}/${marketId}/status?status=${status}`,
-    {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    }
-  )
-  
-  if (!response.ok) {
-    throw new Error('Failed to update market status')
-  }
+  return api.put(`/api/v1/admin/markets/${marketId}/status?status=${status}`)
 }
 
 /**
@@ -134,17 +102,7 @@ export async function updateMarket(
     description: string | null
   }
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/${marketId}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  })
-  
-  if (!response.ok) {
-    throw new Error('Failed to update market')
-  }
+  return api.put(`/api/v1/admin/markets/${marketId}`, data)
 }
 
 /**
@@ -154,15 +112,5 @@ export async function bulkUpdateMarketStatus(
   ids: number[],
   newStatus: 'ACTIVE' | 'INACTIVE'
 ): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/bulk-status`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ ids, newStatus }),
-  })
-  
-  if (!response.ok) {
-    throw new Error('Failed to bulk update market status')
-  }
+  return api.patch('/api/v1/admin/markets/bulk-status', { ids, newStatus })
 }

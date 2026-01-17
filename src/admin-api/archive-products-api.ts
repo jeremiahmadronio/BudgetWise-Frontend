@@ -3,7 +3,7 @@
  * Handles all archived product and market-related API requests
  */
 
-const API_BASE = 'http://localhost:8080/api/v1'
+import { api } from '../utils/apiClient'
 
 // ============================================================================
 // Type Definitions - Products
@@ -107,9 +107,7 @@ export interface ArchivedMarketsPage {
  * Fetch archive statistics
  */
 export async function fetchArchiveStats(): Promise<ArchiveStatsDTO> {
-  const res = await fetch(`${API_BASE}/archive/archive/stats`)
-  if (!res.ok) throw new Error('Failed to fetch archive stats')
-  return res.json()
+  return api.get('/api/v1/admin/archive/archive/stats')
 }
 
 /**
@@ -118,9 +116,7 @@ export async function fetchArchiveStats(): Promise<ArchiveStatsDTO> {
  * @param size - Items per page
  */
 export async function fetchArchivedProductsPage(page = 0, size = 10): Promise<ArchivedProductsPage> {
-  const res = await fetch(`${API_BASE}/archive/archive/table?page=${page}&size=${size}`)
-  if (!res.ok) throw new Error('Failed to fetch archived products')
-  return res.json()
+  return api.get(`/api/v1/admin/archive/archive/table?page=${page}&size=${size}`)
 }
 
 // ============================================================================
@@ -131,9 +127,7 @@ export async function fetchArchivedProductsPage(page = 0, size = 10): Promise<Ar
  * Fetch market archive statistics
  */
 export async function fetchMarketArchiveStats(): Promise<MarketArchiveStatsDTO> {
-  const res = await fetch(`${API_BASE}/markets/archive/stats`)
-  if (!res.ok) throw new Error('Failed to fetch market archive stats')
-  return res.json()
+  return api.get('/api/v1/admin/markets/archive/stats')
 }
 
 /**
@@ -142,9 +136,7 @@ export async function fetchMarketArchiveStats(): Promise<MarketArchiveStatsDTO> 
  * @param size - Items per page
  */
 export async function fetchArchivedMarketsPage(page = 0, size = 10): Promise<ArchivedMarketsPage> {
-  const res = await fetch(`${API_BASE}/markets/archive/table?page=${page}&size=${size}`)
-  if (!res.ok) throw new Error('Failed to fetch archived markets')
-  return res.json()
+  return api.get(`/api/v1/admin/markets/archive/table?page=${page}&size=${size}`)
 }
 
 // ============================================================================
@@ -157,12 +149,7 @@ export async function fetchArchivedMarketsPage(page = 0, size = 10): Promise<Arc
  * @param newStatus - Status to set (should be "ACTIVE")
  */
 export async function restoreProduct(id: number, newStatus: string = 'ACTIVE'): Promise<void> {
-  const res = await fetch(`${API_BASE}/archive/updateStatus`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, newStatus }),
-  })
-  if (!res.ok) throw new Error('Failed to restore product')
+  return api.put('/api/v1/admin/archive/updateStatus', { id, newStatus })
 }
 
 /**
@@ -171,12 +158,7 @@ export async function restoreProduct(id: number, newStatus: string = 'ACTIVE'): 
  * @param newStatus - Status to set (should be "ACTIVE")
  */
 export async function bulkRestoreProducts(ids: number[], newStatus: string = 'ACTIVE'): Promise<void> {
-  const res = await fetch(`${API_BASE}/archive/bulk-status`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids, newStatus }),
-  })
-  if (!res.ok) throw new Error('Failed to bulk restore products')
+  return api.patch('/api/v1/admin/archive/bulk-status', { ids, newStatus })
 }
 
 // ============================================================================
@@ -188,12 +170,7 @@ export async function bulkRestoreProducts(ids: number[], newStatus: string = 'AC
  * @param id - Market ID
  */
 export async function restoreMarket(id: number): Promise<void> {
-  const res = await fetch(`${API_BASE}/markets/archive/restore`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify([id]),
-  })
-  if (!res.ok) throw new Error('Failed to restore market')
+  return api.post('/api/v1/admin/markets/archive/restore', [id])
 }
 
 /**
@@ -201,12 +178,7 @@ export async function restoreMarket(id: number): Promise<void> {
  * @param ids - Array of market IDs to restore
  */
 export async function bulkRestoreMarkets(ids: number[]): Promise<void> {
-  const res = await fetch(`${API_BASE}/markets/archive/restore`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(ids),
-  })
-  if (!res.ok) throw new Error('Failed to bulk restore markets')
+  return api.post('/api/v1/admin/markets/archive/restore', ids)
 }
 
 // ============================================================================
@@ -217,9 +189,7 @@ export async function bulkRestoreMarkets(ids: number[]): Promise<void> {
  * Fetch dietary tag archive statistics
  */
 export async function fetchDietaryTagArchiveStats(): Promise<DietaryTagArchiveStatsDTO> {
-  const res = await fetch(`${API_BASE}/archiveTag/stats`)
-  if (!res.ok) throw new Error('Failed to fetch dietary tag archive stats')
-  return res.json()
+  return api.get('/api/v1/admin/archiveTag/stats')
 }
 
 /**
@@ -228,9 +198,7 @@ export async function fetchDietaryTagArchiveStats(): Promise<DietaryTagArchiveSt
  * @param size - Items per page
  */
 export async function fetchArchivedDietaryTagsPage(page = 0, size = 10): Promise<ArchivedDietaryTagsPage> {
-  const res = await fetch(`${API_BASE}/archiveTag/archive?page=${page}&size=${size}`)
-  if (!res.ok) throw new Error('Failed to fetch archived dietary tags')
-  return res.json()
+  return api.get(`/api/v1/admin/archiveTag/archive?page=${page}&size=${size}`)
 }
 
 // ============================================================================
@@ -242,10 +210,5 @@ export async function fetchArchivedDietaryTagsPage(page = 0, size = 10): Promise
  * @param ids - Array of dietary tag IDs to restore
  */
 export async function restoreDietaryTags(ids: number[]): Promise<void> {
-  const res = await fetch(`${API_BASE}/archiveTag/status?status=ACTIVE`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(ids),
-  })
-  if (!res.ok) throw new Error('Failed to restore dietary tags')
+  return api.put('/api/v1/admin/archiveTag/status?status=ACTIVE', ids)
 }

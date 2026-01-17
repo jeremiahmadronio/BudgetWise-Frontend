@@ -3,8 +3,8 @@
 const BASE_URL = 'http://localhost:8080'
 
 export const AUTH_ENDPOINTS = {
-  REGISTER: `${BASE_URL}/api/v1/users/register`,
-  CHECK_EMAIL: `${BASE_URL}/api/v1/users/check-email`,
+  REGISTER: `${BASE_URL}/api/v1/auth/register`,
+  CHECK_EMAIL: `${BASE_URL}/api/v1/auth/check-email`,
 }
 
 export const checkEmailAvailability = async (email: string): Promise<boolean> => {
@@ -28,20 +28,18 @@ export const registerUser = async (name: string, email: string, password: string
       body: JSON.stringify({ name, email, password }),
     })
 
-    // Check if response is JSON
-    const contentType = response.headers.get('content-type')
-    let data
-    
-    if (contentType && contentType.includes('application/json')) {
-      data = await response.json()
-    } else {
-      // Handle plain text response
-      const text = await response.text()
-      data = { message: text }
-    }
+    const data = await response.json()
 
     if (!response.ok) {
       throw new Error(data.message || data.error || 'Registration failed')
+    }
+
+    // Store token and user info
+    if (data.token) {
+      localStorage.setItem('token', data.token)
+      localStorage.setItem('userId', data.id)
+      localStorage.setItem('userRole', data.role)
+      localStorage.setItem('userEmail', data.email)
     }
 
     return data

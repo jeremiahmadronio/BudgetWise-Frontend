@@ -1,6 +1,6 @@
 // Price Prediction API Functions
 
-const API_BASE_URL = 'http://localhost:8080/api/v1'
+import { api } from '../utils/apiClient'
 
 // ===========================
 // Type Definitions (matching DTOs)
@@ -89,15 +89,7 @@ export async function triggerBulkPrediction(): Promise<{
   message: string
   timestamp: number 
 }> {
-  const response = await fetch(`${API_BASE_URL}/predictions/bulk-trigger`, {
-    method: 'POST',
-  })
-  
-  if (!response.ok) {
-    throw new Error('Failed to trigger bulk prediction')
-  }
-  
-  return response.json()
+  return api.post('/api/v1/admin/predictions/bulk-trigger')
 }
 
 /**
@@ -105,13 +97,7 @@ export async function triggerBulkPrediction(): Promise<{
  * For the stats cards at the top of the dashboard
  */
 export async function fetchDashboardStats(): Promise<DashboardStatsDTO> {
-  const response = await fetch(`${API_BASE_URL}/predictions/dashboard/stats`)
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch dashboard stats')
-  }
-  
-  return response.json()
+  return api.get('/api/v1/admin/predictions/dashboard/stats')
 }
 
 /**
@@ -119,13 +105,7 @@ export async function fetchDashboardStats(): Promise<DashboardStatsDTO> {
  * Used for market dropdown/selector in UI
  */
 export async function fetchActiveMarkets(): Promise<MarketInfoDTO[]> {
-  const response = await fetch(`${API_BASE_URL}/predictions/markets`)
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch active markets')
-  }
-  
-  return response.json()
+  return api.get('/api/v1/admin/predictions/markets')
 }
 
 /**
@@ -138,20 +118,7 @@ export async function fetchProductCentricPredictions(
   sortBy: string = 'productName',
   sortDirection: 'ASC' | 'DESC' = 'ASC'
 ): Promise<PaginatedResponse<ProductCentricPredictionDTO>> {
-  const params = new URLSearchParams({
-    page: page.toString(),
-    size: size.toString(),
-    sortBy,
-    sortDirection
-  })
-  
-  const response = await fetch(`${API_BASE_URL}/predictions/products?${params}`)
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch product-centric predictions')
-  }
-  
-  return response.json()
+  return api.get(`/api/v1/admin/predictions/products?page=${page}&size=${size}&sortBy=${sortBy}&sortDirection=${sortDirection}`)
 }
 
 /**
@@ -161,22 +128,13 @@ export async function fetchProductCentricPredictions(
 export async function fetchComparisonMatrix(
   productIds?: number[]
 ): Promise<ProductCentricPredictionDTO[]> {
-  let url = `${API_BASE_URL}/predictions/comparison-matrix`
+  let url = '/api/v1/admin/predictions/comparison-matrix'
   
   if (productIds && productIds.length > 0) {
-    const params = new URLSearchParams({
-      productIds: productIds.join(',')
-    })
-    url += `?${params}`
+    url += `?productIds=${productIds.join(',')}`
   }
   
-  const response = await fetch(url)
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch comparison matrix')
-  }
-  
-  return response.json()
+  return api.get(url)
 }
 
 /**
@@ -190,22 +148,7 @@ export async function fetchMarketCentricPredictions(
   sortBy: string = 'productName',
   sortDirection: 'ASC' | 'DESC' = 'ASC'
 ): Promise<PaginatedResponse<PriceCalibrationDTO>> {
-  const params = new URLSearchParams({
-    page: page.toString(),
-    size: size.toString(),
-    sortBy,
-    sortDirection
-  })
-  
-  const response = await fetch(
-    `${API_BASE_URL}/predictions/markets/${marketId}/predictions?${params}`
-  )
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch predictions for market ${marketId}`)
-  }
-  
-  return response.json()
+  return api.get(`/api/v1/admin/predictions/markets/${marketId}/predictions?page=${page}&size=${size}&sortBy=${sortBy}&sortDirection=${sortDirection}`)
 }
 
 /**
@@ -218,20 +161,7 @@ export async function searchProducts(
   size: number = 10
 ): Promise<PaginatedResponse<ProductCentricPredictionDTO>> {
   // Fetch ALL products for comprehensive client-side search
-  const params = new URLSearchParams({
-    page: '0',
-    size: '10000', // Fetch ALL products
-    sortBy: 'productName',
-    sortDirection: 'ASC'
-  })
-  
-  const response = await fetch(`${API_BASE_URL}/predictions/products?${params}`)
-  
-  if (!response.ok) {
-    throw new Error('Failed to search products')
-  }
-  
-  const data = await response.json()
+  const data = await api.get('/api/v1/admin/predictions/products?page=0&size=10000&sortBy=productName&sortDirection=ASC')
   
   // Client-side filtering with priority on "starts with"
   const searchLower = searchTerm.toLowerCase().trim()
@@ -292,15 +222,7 @@ export async function fetchPriceHistory(
   productId: number,
   marketId: number
 ): Promise<any> {
-  const response = await fetch(
-    `${API_BASE_URL}/predictions/debug/history?productId=${productId}&marketId=${marketId}`
-  )
-  
-  if (!response.ok) {
-    throw new Error('Failed to fetch price history')
-  }
-  
-  return response.json()
+  return api.get(`/api/v1/admin/predictions/debug/history?productId=${productId}&marketId=${marketId}`)
 }
 
 /**
@@ -311,14 +233,7 @@ export async function regeneratePrediction(
   productId: number,
   marketId: number
 ): Promise<void> {
-  const response = await fetch(
-    `${API_BASE_URL}/predictions/generate?productId=${productId}&marketId=${marketId}`,
-    { method: 'POST' }
-  )
-  
-  if (!response.ok) {
-    throw new Error('Failed to regenerate prediction')
-  }
+  return api.post(`/api/v1/admin/predictions/generate?productId=${productId}&marketId=${marketId}`)
 }
 
 /**
@@ -330,24 +245,11 @@ export async function applyBulkOverride(
   forceTrend: string,
   reason: string
 ): Promise<void> {
-  const response = await fetch(
-    `${API_BASE_URL}/predictions/bulk-override`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        pairs,
-        forceTrend,
-        reason
-      })
-    }
-  )
-  
-  if (!response.ok) {
-    throw new Error('Failed to apply override')
-  }
+  return api.post('/api/v1/admin/predictions/bulk-override', {
+    pairs,
+    forceTrend,
+    reason
+  })
 }
 
 // ===========================

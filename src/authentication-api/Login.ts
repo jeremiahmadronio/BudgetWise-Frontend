@@ -8,7 +8,7 @@ export const FRONTEND_CALLBACK_URL = 'http://localhost:5173/auth/callback'
 
 export const AUTH_ENDPOINTS = {
   GOOGLE_OAUTH: `${BASE_URL}/oauth2/authorization/google`,
-  LOGIN: `${BASE_URL}/api/auth/login`,
+  LOGIN: `${BASE_URL}/api/v1/auth/login`,
   LOGOUT: `${BASE_URL}/api/auth/logout`,
   REFRESH_TOKEN: `${BASE_URL}/api/auth/refresh`,
 }
@@ -17,21 +17,30 @@ export const loginWithGoogle = () => {
   window.location.href = AUTH_ENDPOINTS.GOOGLE_OAUTH
 }
 
-export const loginWithCredentials = async (username: string, password: string) => {
+export const loginWithCredentials = async (email: string, password: string) => {
   try {
     const response = await fetch(AUTH_ENDPOINTS.LOGIN, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ email, password }),
     })
 
     if (!response.ok) {
-      throw new Error('Login failed')
+      const error = await response.json()
+      throw error
     }
 
-    return await response.json()
+    const data = await response.json()
+    // Store token and user info
+    if (data.token) {
+      localStorage.setItem('token', data.token)
+      localStorage.setItem('userId', data.id)
+      localStorage.setItem('userRole', data.role)
+      localStorage.setItem('userEmail', data.email)
+    }
+    return data
   } catch (error) {
     console.error('Login error:', error)
     throw error

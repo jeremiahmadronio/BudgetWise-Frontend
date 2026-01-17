@@ -1,39 +1,43 @@
 import { useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { getTokenData } from '../utils/jwtUtils'
 
 export function AuthCallback() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
   useEffect(() => {
-    const id = searchParams.get('id')
-    const role = searchParams.get('role')
-    const email = searchParams.get('email')
-    const providerId = searchParams.get('providerId')
+    // Get token from query params (OAuth2 login)
+    const token = searchParams.get('token')
 
-    if (id && role && email) {
-      // Store user data in localStorage
-      localStorage.setItem('userId', id)
-      localStorage.setItem('userRole', role)
-      localStorage.setItem('userEmail', email)
+    if (token) {
+      // Store token
+      localStorage.setItem('token', token)
       
-      // Store providerId if available (for OAuth users)
-      if (providerId) {
-        localStorage.setItem('providerId', providerId)
+      // Decode token to get user data
+      const userData = getTokenData(token)
+      
+      if (userData) {
+        localStorage.setItem('userId', userData.id)
+        localStorage.setItem('userRole', userData.role)
+        localStorage.setItem('userEmail', userData.email)
+        
+        // Redirect based on role
+        setTimeout(() => {
+          if (userData.role === 'USER') {
+            navigate('/dashboard')
+          } else if (userData.role === 'ADMIN') {
+            navigate('/admin/dashboard')
+          } else {
+            navigate('/')
+          }
+        }, 800)
+      } else {
+        // Failed to decode token
+        navigate('/login')
       }
-
-      // Redirect based on role
-      setTimeout(() => {
-        if (role === 'USER') {
-          navigate('/dashboard')
-        } else if (role === 'ADMIN') {
-          navigate('/admin/dashboard')
-        } else {
-          navigate('/')
-        }
-      }, 800)
     } else {
-      // If missing params, redirect to login
+      // No token found, redirect to login
       navigate('/login')
     }
   }, [searchParams, navigate])

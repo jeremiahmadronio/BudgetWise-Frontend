@@ -1,6 +1,6 @@
 // Analytics API Functions
 
-const API_BASE_URL = 'http://localhost:8080/api/v1'
+import { api } from '../utils/apiClient'
 
 export interface Market {
   id: number
@@ -59,11 +59,7 @@ export interface MarketMovementsData {
  * Fetch markets and products for dropdowns
  */
 export async function fetchDiscoveryData(): Promise<DiscoveryData> {
-  const response = await fetch(`${API_BASE_URL}/analytics/discovery`)
-  if (!response.ok) {
-    throw new Error('Failed to fetch discovery data')
-  }
-  return response.json()
+  return api.get('/api/v1/admin/analytics/discovery')
 }
 
 /**
@@ -74,17 +70,7 @@ export async function fetchProductAnalytics(
   marketId: number,
   days: number
 ): Promise<AnalyticsData> {
-  const params = new URLSearchParams({
-    productName,
-    marketId: marketId.toString(),
-    days: days.toString()
-  })
-  
-  const response = await fetch(`${API_BASE_URL}/analytics/product?${params}`)
-  if (!response.ok) {
-    throw new Error('Failed to fetch analytics data')
-  }
-  return response.json()
+  return api.get(`/api/v1/admin/analytics/product?productName=${encodeURIComponent(productName)}&marketId=${marketId}&days=${days}`)
 }
 
 /**
@@ -95,17 +81,7 @@ export async function fetchMarketComparison(
   marketId: number,
   days: number
 ): Promise<MarketComparisonData[]> {
-  const params = new URLSearchParams({
-    productName,
-    marketId: marketId.toString(),
-    days: days.toString()
-  })
-  
-  const response = await fetch(`${API_BASE_URL}/analytics/market-comparison?${params}`)
-  if (!response.ok) {
-    throw new Error('Failed to fetch market comparison data')
-  }
-  return response.json()
+  return api.get(`/api/v1/admin/analytics/market-comparison?productName=${encodeURIComponent(productName)}&marketId=${marketId}&days=${days}`)
 }
 
 /**
@@ -116,15 +92,5 @@ export async function fetchMarketMovements(
   marketId: number,
   days: number
 ): Promise<MarketMovementsData> {
-  const params = new URLSearchParams({
-    productName,
-    marketId: marketId.toString(),
-    days: days.toString()
-  })
-  
-  const response = await fetch(`${API_BASE_URL}/analytics/market-movements?${params}`)
-  if (!response.ok) {
-    throw new Error('Failed to fetch market movements data')
-  }
-  return response.json()
+  return api.get(`/api/v1/admin/analytics/market-movements?marketId=${marketId}&days=${days}`)
 }
